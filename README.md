@@ -1,71 +1,181 @@
-# deval README
+# DeepEval for VS Code
 
-This is the README for your extension "deval". After writing up a brief description, we recommend including the following sections.
+A working starter for evaluating coding agents with [DeepEval](https://deepeval.com/docs/getting-started) TypeScript suites, run from VS Code.
 
-## Features
+It gives you three things:
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+1. **A reference agent harness** (`src/agent-harness.ts`) and a benchmark suite that evaluates it — the seam you replace with your own agent.
+2. **A capture pipeline** for the VS Code **Local** agent harness (`.github/hooks/`, `.deepeval/vscode-agent-events/*.jsonl`) and a suite that evaluates a captured run.
+3. **Commands that run both** and report pass/fail, plus a scaffolder for a new suite.
 
-For example if there is an image subfolder under your extension project workspace:
+The bundled suites use **deterministic metrics only**, so they run offline with no API key — locally and in CI.
 
-\!\[feature X\]\(images/feature-x.png\)
+## Quick start
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+```sh
+npm install
+npm run benchmark      # run the bundled DeepEval suites
+npm test               # run the extension-host tests
+```
 
-## Requirements
+Press `F5` to launch the Extension Development Host, then use the Command Palette:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+| Command | What it does |
+| --- | --- |
+| `DeepEval: Run Test Suite` | Pick a `*.test.ts` / `*.spec.ts` suite and run it with `deepeval test run`. |
+| `DeepEval: Evaluate Captured Local Agent Run` | Pick a suite **and** a captured `.jsonl`, then run the suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. |
+| `DeepEval: Scaffold Sample Benchmark` | Write `benchmarks/my-agent.test.ts` — a self-contained starter suite — into the workspace, open it, and offer to install `deepeval` + `vitest` with `deval.packageManager`. |
 
-## Extension Settings
+Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Scripts
 
-For example:
+| Script | Purpose |
+| --- | --- |
+| `npm run check-types` | Type-check the extension (`tsconfig.json`) **and** the benchmarks (`tsconfig.benchmarks.json`). |
+| `npm run lint` | ESLint over `src`, `benchmarks`, and the Vitest config. |
+| `npm run compile` | Type-check, lint, and bundle to `dist/extension.js`. |
+| `npm run benchmark` | `deepeval test run benchmarks` — both bundled suites. |
+| `npm run benchmark:todo` | Only the reference-agent suite. |
+| `npm run benchmark:captured` | Only the captured-run suite (skips itself if `DEEPEVAL_VSCODE_EVENTS` is unset). |
+| `npm test` | Extension-host tests via `@vscode/test-electron`. |
+| `npm run package` | Production bundle for packaging. |
 
-This extension contributes the following settings:
+## Replace the agent under test
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+`src/agent-harness.ts` is the only file you need to change to evaluate your own agent. It is deliberately dependency-free — it imports neither `vscode` nor `deepeval` — so the same file loads in the extension host and in the Vitest process that DeepEval spawns.
 
-## Known Issues
+```ts
+export interface AgentRun {
+  input: string;                 // the prompt the agent was asked to satisfy
+  output: string;                // the artifact the agent produced, as text
+  toolsCalled: AgentToolCall[];  // the tools it used, in call order
+}
+```
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Return that shape from your implementation and every suite keeps working. `todoAppAgent` is a deterministic reference implementation that emits a single-file todo app.
 
-## Release Notes
+## Instrument the agent so metrics can see it
 
-Users appreciate release notes as you update your extension.
+Model-judged and trajectory metrics do not read your return value — they read a **trace**. Wrap the call in `observe(...)` and publish its I/O:
 
-### 1.0.0
+```ts
+import { SpanType, observe, updateCurrentSpan, updateCurrentTrace } from 'deepeval/tracing';
 
-Initial release of ...
+const observedAgent = observe({
+  type: SpanType.AGENT,
+  name: 'my-agent',
+  fn: async (input: string) => {
+    const run = await runAgent(input);
+    const turn = { input: run.input, output: run.output, toolsCalled: run.toolsCalled };
+    updateCurrentSpan(turn);    // component scope
+    updateCurrentTrace(turn);   // turn scope — this is what ToolCorrectnessMetric reads
+    return run.output;
+  },
+});
+```
 
-### 1.0.1
+Then assert against a golden:
 
-Fixed issue #.
+```ts
+const golden = new Golden({ input: 'Build a todo app.', expectedTools: expectedTodoTools() });
 
-### 1.1.0
+await expect(golden).toPass([structuralChecks(), new ToolCorrectnessMetric({ threshold: 1 })], {
+  task: (testCase) => observedAgent(testCase.input),
+});
+```
 
-Added features X, Y, and Z.
+`expect(golden).toPass(...)` requires a trace, so a task that is not `observe`d fails with *"ran the callback but no trace was produced"*. If a metric needs `toolsCalled`, publish it with `updateCurrentTrace` — publishing it only on the span is not enough.
 
----
+## Writing metrics
 
-## Following extension guidelines
+`benchmarks/metrics/` holds two custom metrics that show the pattern:
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+- **`ContainsAllMetric`** — required/forbidden substrings; the score is the fraction satisfied. Used for structural checks on generated artifacts.
+- **`ToolCallResolutionMetric`** — the share of captured tool calls that returned a result, with a documented tolerance.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+Extend `BaseMetric`, set `requiredParams`, compute a `score` in `measure`, and let `isSuccessful()` compare it to the threshold. Deterministic metrics need no key, which is what keeps CI green.
 
-## Working with Markdown
+For subjective checks, DeepEval's built-in judge metrics (`TaskCompletionMetric`, `GEval`, `ToolCorrectnessMetric` with `availableTools`, …) work as-is — they need `DEEPEVAL_API_KEY`:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+```sh
+export DEEPEVAL_API_KEY=...
+```
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+## Capture the VS Code Local harness
 
-## For more information
+This extension ships a Preview Local hook at `.github/hooks/deval.json`. With **Local** selected as the session target, a trusted workspace, and `chat.useHooks` enabled, it records prompt, tool-use, tool-result, and stop events to `.deepeval/vscode-agent-events/<session-id>.jsonl`:
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+```json
+{"timestamp":"...","cwd":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"read_file","tool_use_id":"call_...","tool_input":{...}}
+```
 
-**Enjoy!**
+`DeepEval: Evaluate Captured Local Agent Run` sets `DEEPEVAL_VSCODE_EVENTS` to the selected file's absolute path. A suite reads it with `resolveCapturedRunPath()` / `loadCapturedRun()` from `src/events/event-log.ts`, which parses the JSONL, pairs `PreToolUse` with `PostToolUse`, and summarizes the trajectory.
+
+The hook files are **not** inside the packaged extension: `.vscodeignore` excludes `.github/**`, so only this repository has them, and a workspace that only ever received a scaffolded benchmark has no hook to enable. Run `DeepEval: Install Capture Hook` to write `.github/hooks/deval.json` and `.github/hooks/deval-hook.cjs` into any workspace. The same button is offered by **Evaluate Captured Local Agent Run** when it finds no captures — alongside the exact directory it searched — and by **Scaffold Sample Benchmark** next to **Install dependencies**. Afterwards, enable `chat.useHooks`, confirm discovery with `Chat: Configure Hooks`, and send one turn in a **Local** session.
+
+The captured-run suite evaluates the **trajectory** — prompts, tool names, pairing, completion, destructive-tool policy — because the documented `Stop` payload does not include the response text. A suite that needs the prose must read `transcript_path`, whose format VS Code documents as unstable across releases.
+
+Two behaviours worth knowing:
+
+- A tool call the user **denies** appears as a `PreToolUse` with no matching `PostToolUse`. That is normal, which is why `ToolCallResolutionMetric` allows a small unresolved share instead of failing on any dangling call.
+- The Local harness documents eight events — `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`. This reader interprets the middle four (`HOOK_EVENT_NAMES`); the rest are written to the capture and ignored, so a run with subagents or compaction still evaluates. Run `Chat: Configure Hooks` to confirm which hook files the harness discovered, and check the **GitHub Copilot Chat Hooks** output channel for hook errors.
+- Hooks are Preview and apply only to the VS Code Local harness; Copilot, Claude, and Codex Agent Host sessions have provider-specific hook behaviour.
+
+**Privacy:** captures contain prompts, tool arguments, tool results, and a `transcript_path` into your VS Code history, so `.deepeval/` is Git-ignored. Do not commit it.
+
+## The `@deval` chat participant
+
+`@deval` sends the conversation to the model selected in Chat and streams the response. It is an extension-owned chat participant, not a hook into GitHub Copilot's built-in agent mode.
+
+The test runner executes **outside** the extension host, so it cannot call the participant's `vscode.lm` request. That is exactly why `src/agent-harness.ts` exists as a plain, importable seam: the suites call the harness, and you point the harness at whatever agent you want to measure.
+
+## Repository layout
+
+```
+src/
+  agent-harness.ts               # the agent under test (replace this)
+  capture-hook.ts                # the embedded capture hook, written into any workspace
+  deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
+  events/event-log.ts            # JSONL capture parser + trajectory summarizer
+  extension.ts                   # commands, chat participant, task runner, scaffolder
+  test/                          # extension-host tests (Mocha, via `npm test`)
+benchmarks/
+  todo-benchmark.test.ts         # evaluates the reference agent through a trace
+  captured-run-benchmark.test.ts # evaluates a captured Local-harness run
+  metrics/                       # custom deterministic metrics
+scripts/patch-deepeval.mjs       # see "Known upstream issue" below
+```
+
+`vitest.config.mts` limits Vitest to `benchmarks/**` on purpose: `src/test/**` holds the Mocha suites, which import `vscode` and would fail inside Vitest.
+
+## Known upstream issue
+
+`deepeval@0.9.22` — the current latest release — ships a stale `dist/telemetry.js` that shadows its own `dist/telemetry/` directory. Node resolves the CLI's `require("../telemetry")` to that file, so every command fails with either `Cannot find module '@sentry/node'` (the stray file's only use of an undeclared dependency) or `captureCliCommand is not a function`.
+
+Two things repair it, so this is handled for you:
+
+- In **this repository**, `scripts/patch-deepeval.mjs` runs on `postinstall` and renames the shadowing files. `@sentry/node` is also listed as a devDependency so an install with `--ignore-scripts` still loads.
+- In **any other workspace** — including one you just scaffolded — the extension renames the same files in-process (see `src/deepeval-patch.ts`) before every run, and again after **Install dependencies**. A packaged extension ships without `scripts/`, which is why this is done in-process rather than by spawning a script.
+
+A read-only `node_modules` or a future fixed release is tolerated; the patch is never the reason a run fails. Remove all of this once upstream publishes a fix.
+
+### The `npm-cache\_npx` failure
+
+If the stack points at `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\deepeval\dist\telemetry.js`, the workspace had **no local install** for npx to use, so npx downloaded DeepEval itself. That copy is unpatchable from inside the extension (it lives in npm's cache, outside the workspace) and the suite would fail regardless, because `vitest` is missing too. Both run commands detect this via `requiresLocalDeepEvalInstall()` and offer **Install dependencies** rather than starting a run that cannot succeed. To repair a cached or global copy by hand, point the postinstall script at it:
+
+```sh
+node scripts/patch-deepeval.mjs "%LOCALAPPDATA%\npm-cache\_npx\<hash>"
+```
+
+## CI
+
+`.github/workflows/ci.yml` type-checks, lints, bundles, runs the DeepEval suites, and runs the extension-host tests under `xvfb`. The deterministic suites mean no secrets are needed.
+
+## Settings
+
+- `deval.deepevalCommand`: executable used to launch the DeepEval runner. Defaults to `npx`.
+- `deval.packageManager`: package manager the scaffolder installs with — `npm`, `pnpm`, `yarn`, or `bun`. Defaults to `npm`, and is used only by **Install dependencies** on the scaffold notification.
+
+These are deliberately separate settings. `deval.deepevalCommand` names the *runner* (`npx deepeval test run …`), so it cannot be reused to install: `npx install --save-dev deepeval vitest` makes npx look for an executable called `install` and fail with `could not determine executable to run`.
+

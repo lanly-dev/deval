@@ -1,0 +1,23 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "rootDir": ".",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "benchmarks/**/*.ts",
+        "vitest.config.mts",
+        "src/agent-harness.ts",
+        "src/events/event-log.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "out"
+    ]
+}

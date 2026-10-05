@@ -1,49 +1,115 @@
 {
   "name": "deval",
   "displayName": "deval",
-  "description": "",
+  "description": "Run DeepEval TypeScript test suites from VS Code and evaluate captured Local agent harness runs.",
   "version": "0.0.1",
+  "license": "MIT",
+  "publisher": "lanly-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lanly-dev/deval.git"
+  },
   "engines": {
     "vscode": "^1.138.0"
   },
   "categories": [
+    "Testing",
+    "AI",
     "Other"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "deepeval",
+    "llm",
+    "evaluation",
+    "agent",
+    "benchmark",
+    "vitest"
+  ],
+  "activationEvents": [
+    "onChatParticipant:deval.agent"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "deval.helloWorld",
-        "title": "Hello World"
+        "command": "deval.runDeepEval",
+        "title": "DeepEval: Run Test Suite"
+      },
+      {
+        "command": "deval.evaluateAgentRun",
+        "title": "DeepEval: Evaluate Captured Local Agent Run"
+      },
+      {
+        "command": "deval.scaffoldBenchmark",
+        "title": "DeepEval: Scaffold Sample Benchmark"
+      },
+      {
+        "command": "deval.installCaptureHook",
+        "title": "DeepEval: Install Capture Hook"
       }
-    ]
+    ],
+    "chatParticipants": [
+      {
+        "id": "deval.agent",
+        "name": "deval",
+        "fullName": "Deval Agent",
+        "description": "A local chat harness for evaluating agent behavior with DeepEval suites."
+      }
+    ],
+    "configuration": {
+      "title": "DeepEval",
+      "properties": {
+        "deval.deepevalCommand": {
+          "type": "string",
+          "default": "npx",
+          "description": "Executable used to launch the DeepEval TypeScript test runner."
+        },
+        "deval.packageManager": {
+          "type": "string",
+          "enum": [
+            "npm",
+            "pnpm",
+            "yarn",
+            "bun"
+          ],
+          "default": "npm",
+          "description": "Package manager the Scaffold Sample Benchmark command uses to install deepeval and vitest."
+        }
+      }
+    }
   },
   "scripts": {
+    "postinstall": "node scripts/patch-deepeval.mjs",
     "vscode:prepublish": "npm run package",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
+    "compile-tests": "node -e \"const fs=require('fs'); fs.rmSync('out', { recursive: true, force: true });\" && tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src",
+    "check-types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.benchmarks.json",
+    "lint": "eslint src benchmarks vitest.config.mts",
+    "benchmark": "deepeval test run benchmarks",
+    "benchmark:todo": "deepeval test run benchmarks/todo-benchmark.test.ts",
+    "benchmark:captured": "deepeval test run benchmarks/captured-run-benchmark.test.ts",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.138.0",
+    "@sentry/node": "^11.4.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "24.x",
-    "typescript-eslint": "^8.61.1",
-    "eslint": "^10.5.0",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "deepeval": "^0.9.22",
     "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^6.0.3",
-    "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^3.0.0"
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "diff": "^8.0.4",
