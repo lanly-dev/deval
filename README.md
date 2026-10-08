@@ -1,4 +1,4 @@
-# deval
+# Deval
 
 A VS Code extension with its own benchmarkable coding agent. Chat with `@deval` and it runs a real tool-calling loop against your Chat model; every run is captured, and DeepEval TypeScript suites score the runs — trajectory and tool use — with deterministic metrics.
 

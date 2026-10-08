@@ -317,7 +317,7 @@ const INSTALL_ARGUMENTS: Record<PackageManager, string[]> = {
  * makes npx look for an executable called `install`, which fails with
  * "could not determine executable to run".
  *
- * An unset or unrecognised value falls back to npm rather than erroring, since
+ * An unset or unrecognized value falls back to npm rather than erroring, since
  * a typo in a setting should not block the installer.
  */
 export function getInstallInvocation(packageManager: string | undefined): {

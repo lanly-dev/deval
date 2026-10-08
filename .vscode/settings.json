@@ -11,6 +11,13 @@
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
     "js/ts.tsc.autoDetect": "off",
     "cSpell.words": [
-        "deval"
+        "benchmarkable",
+        "deepeval",
+        "deval",
+        "headlessly",
+        "inspectable",
+        "lanly",
+        "LOCALAPPDATA",
+        "unpatchable"
     ]
 }
