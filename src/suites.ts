@@ -19,7 +19,7 @@ export const DEEPEVAL_TEST_PATTERNS = [
 ];
 
 /** Paths that never contain a DeepEval suite worth running from here. */
-export const DEEPEVAL_TEST_EXCLUDES = '**/{node_modules,dist,out,.vscode-test}/**';
+export const DEEPEVAL_TEST_EXCLUDES = '**/{node_modules,dist,out,.vscode-test,.deepeval}/**';
 
 export function getDeepEvalTestPatterns(): string[] {
 	return [...DEEPEVAL_TEST_PATTERNS];
@@ -192,6 +192,36 @@ function applyDeepEvalPatch(projectRoot: string): void {
 	}
 }
 
+/**
+ * Make sure DeepEval can run in `workspaceFolder`: refuse an npx download
+ * into npm's cache (offering to install instead) and repair the known-broken
+ * CLI. Resolves to the configured runner command, or `undefined` when the
+ * user declined the install.
+ */
+export async function ensureDeepEvalReady(
+	workspaceFolder: vscode.WorkspaceFolder,
+	reason: string,
+): Promise<string | undefined> {
+	const command = vscode.workspace.getConfiguration('deval').get<string>('deepevalCommand', 'npx');
+	if (requiresLocalDeepEvalInstall(command, workspaceFolder.uri.fsPath)) {
+		// npx would download DeepEval into npm's cache: unpinned, outside the
+		// workspace, and unusable here because the suite also needs Vitest.
+		const install = 'Install dependencies';
+		const choice = await vscode.window.showWarningMessage(
+			`DeepEval is not installed in "${workspaceFolder.name}", so npx would download a copy that cannot run ${reason}.`,
+			{ modal: true },
+			install,
+		);
+		if (choice !== install || !(await installDeepEvalDependencies(workspaceFolder))) {
+			return undefined;
+		}
+	}
+
+	// The child process cannot repair its own dependency, so patch first.
+	applyDeepEvalPatch(workspaceFolder.uri.fsPath);
+	return command;
+}
+
 export async function runDeepEval(withCapturedRun = false): Promise<void> {
 	if (!vscode.workspace.workspaceFolders?.length) {
 		vscode.window.showWarningMessage('Open a workspace folder to run DeepEval tests.');
@@ -221,23 +251,13 @@ export async function runDeepEval(withCapturedRun = false): Promise<void> {
 		return;
 	}
 
-	const command = vscode.workspace.getConfiguration('deval').get<string>('deepevalCommand', 'npx');
-	if (requiresLocalDeepEvalInstall(command, workspaceFolder.uri.fsPath)) {
-		// npx would download DeepEval into npm's cache: unpinned, outside the
-		// workspace, and unusable here because the suite also needs Vitest.
-		const install = 'Install dependencies';
-		const choice = await vscode.window.showWarningMessage(
-			`DeepEval is not installed in "${workspaceFolder.name}", so npx would download a copy that cannot run ${vscode.workspace.asRelativePath(selectedFile.uri)}.`,
-			{ modal: true },
-			install,
-		);
-		if (choice !== install || !(await installDeepEvalDependencies(workspaceFolder))) {
-			return;
-		}
+	const command = await ensureDeepEvalReady(
+		workspaceFolder,
+		vscode.workspace.asRelativePath(selectedFile.uri),
+	);
+	if (!command) {
+		return;
 	}
-
-	// The child process cannot repair its own dependency, so patch first.
-	applyDeepEvalPatch(workspaceFolder.uri.fsPath);
 
 	const eventsFile = await selectDeepEvalRun(workspaceFolder, withCapturedRun);
 	if (withCapturedRun && !eventsFile) {

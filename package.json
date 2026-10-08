@@ -38,6 +38,10 @@
       {
         "command": "deval.evaluateAgentRun",
         "title": "DeepEval: Evaluate Captured Agent Run"
+      },
+      {
+        "command": "deval.benchmarkChatModel",
+        "title": "DeepEval: Benchmark Chat Model"
       }
     ],
     "chatParticipants": [
@@ -133,7 +137,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.benchmarks.json",
-    "lint": "eslint src benchmarks vitest.config.mts",
+    "lint": "eslint src benchmarks resources vitest.config.mts",
     "benchmark": "deepeval test run benchmarks",
     "benchmark:captured": "deepeval test run benchmarks/captured-run-benchmark.test.ts",
     "test": "vscode-test"

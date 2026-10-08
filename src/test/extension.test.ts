@@ -37,6 +37,7 @@ suite('Extension Test Suite', () => {
 		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('node_modules'));
 		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('out'));
 		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('.vscode-test'));
+		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('.deepeval'));
 	});
 
 	test('DeepEval test URIs are de-duped', () => {

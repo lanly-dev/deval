@@ -12,6 +12,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `DeepEval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring.
 - `benchmarks/agent-loop-benchmark.test.ts` — deterministic suite driving the loop with a scripted model through `observe()`, asserting with `ContainsAllMetric` and `ToolCorrectnessMetric`.
 - Unit tests for the loop core (fake model/tool ports) and the capture writer.
+- `DeepEval: Benchmark Chat Model` — benchmarks the chat model wired to VS Code (`vscode.lm`) with a built-in suite that ships in `resources/builtin-suites/`: six deterministic cases (recall, exact-output, arithmetic, code, formatting, summary). The command records the model's answers, stages the suite into git-ignored `.deepeval/builtin-suites/`, and runs it with `DEEPEVAL_MODEL_RESPONSES` pointing at the answers. Works in any workspace, no test files needed.
 
 ### Removed
 
