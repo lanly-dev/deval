@@ -50,6 +50,15 @@ export function hasDeepEvalInstall(projectRoot: string): boolean {
 }
 
 /**
+ * True when `projectRoot` has its own Vitest install. The benchmark suite is
+ * a Vitest suite, so DeepEval alone is not a runnable install — a workspace
+ * with only `deepeval` would fail the run without ever writing results.
+ */
+export function hasVitestInstall(projectRoot: string): boolean {
+	return existsSync(join(projectRoot, 'node_modules', 'vitest', 'package.json'));
+}
+
+/**
  * Disable the files that shadow `node_modules/deepeval/dist/telemetry/`.
  *
  * Never throws and never removes anything: a missing install, an already

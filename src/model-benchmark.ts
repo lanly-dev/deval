@@ -176,25 +176,30 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 	}
 	await executeTaskWithReporting(task, label);
 	// Record the score even when the benchmark failed: a failing run is still
-	// a score worth comparing. There is simply no record when the run never
-	// produced a results file.
-	await recordBenchmarkScore(workspaceFolder, latestRunFile, runDirectory, model.name);
+	// a score worth comparing. When the run produced no results file at all,
+	// say so — otherwise the missing scoreboard entry is a silent mystery.
+	const recorded = await recordBenchmarkScore(workspaceFolder, latestRunFile, runDirectory, model.name);
+	if (!recorded) {
+		void vscode.window.showWarningMessage(
+			`Deval: the benchmark finished without producing results, so no score was recorded. See the terminal for what happened.`,
+		);
+	}
 }
 
 /**
  * Read the DeepEval run's own results file and append one score record per
- * benchmark case. Best-effort: a missing or unreadable results file only
- * means this run won't appear on the scoreboard.
+ * benchmark case. Resolves to true when a score was recorded; false when
+ * there was no results file to read.
  */
 async function recordBenchmarkScore(
 	workspaceFolder: vscode.WorkspaceFolder,
 	latestRunFile: string,
 	runDirectory: vscode.Uri,
 	modelName: string,
-): Promise<void> {
+): Promise<boolean> {
 	const checks = await readBenchmarkChecks(latestRunFile, vscode.Uri.joinPath(runDirectory, 'spec.json'));
 	if (!checks) {
-		return;
+		return false;
 	}
 	void appendScore(devalDirectoryUri(workspaceFolder).fsPath, {
 		timestamp: new Date().toISOString(),
@@ -202,6 +207,7 @@ async function recordBenchmarkScore(
 		label: modelName,
 		checks,
 	});
+	return true;
 }
 
 /** Parse DeepEval's `.latest_test_run.json` into one check per benchmark case. */
