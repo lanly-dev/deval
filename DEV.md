@@ -157,30 +157,33 @@ So to compare two models, run command 2 once per model and open the scoreboard; 
 ## Repository layout
 ```
 src/
-  agent/loop.ts                  # dependency-free agentic loop: model turns, tool dispatch, capture
-  agent/tool-schemas.ts          # the read-only tools the @deval agent can call (dependency-free)
-  agent/tools.ts                 # vscode.lm tool registration + implementations
-  agent/vscode-adapter.ts        # adapts the loop to vscode.lm (messages, tool calls, streaming)
-  agent/participant.ts           # the @deval chat participant + the headless agent run
-  chat-models.ts                 # shared chat-model picker (vscode.lm)
-  deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
-  events/event-log.ts            # JSONL capture parser + trajectory summarizer
-  events/event-writer.ts         # writes captures in the format event-log.ts reads
-  events/score-trajectory.ts     # deterministic trajectory checks, shared by command 1 and the captured-run suite
-  model-benchmark.ts             # the built-in chat-model benchmark command
-  scores.ts                      # score history: append/read .deval/scores.jsonl (dependency-free)
-  scoreboard.ts                  # renders the scoreboard webview HTML (dependency-free)
-  scoreboard-panel.ts            # command 3: opens the scoreboard webview
-  suites.ts                      # the evaluate command, capture picker, install flow
-  extension.ts                   # thin entry point: registers commands and the participant
-  test/                          # extension-host tests (Mocha, via `npm test`)
+├── agent/
+│   ├── loop.ts                    # dependency-free agentic loop: model turns, tool dispatch, capture
+│   ├── tool-schemas.ts            # the read-only tools the @deval agent can call (dependency-free)
+│   ├── tools.ts                   # vscode.lm tool registration + implementations
+│   ├── vscode-adapter.ts          # adapts the loop to vscode.lm (messages, tool calls, streaming)
+│   └── participant.ts             # the @deval chat participant + the headless agent run
+├── events/
+│   ├── event-log.ts               # JSONL capture parser + trajectory summarizer
+│   ├── event-writer.ts            # writes captures in the format event-log.ts reads
+│   └── score-trajectory.ts        # deterministic trajectory checks, shared by command 1 and the captured-run suite
+├── test/                          # extension-host tests (Mocha, via `npm test`)
+├── chat-models.ts                 # shared chat-model picker (vscode.lm)
+├── deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
+├── model-benchmark.ts             # the built-in chat-model benchmark command
+├── scores.ts                      # score history: append/read .deval/scores.jsonl (dependency-free)
+├── scoreboard.ts                  # renders the scoreboard webview HTML (dependency-free)
+├── scoreboard-panel.ts            # command 3: opens the scoreboard webview
+├── suites.ts                      # the evaluate command, capture picker, install flow
+└── extension.ts                   # thin entry point: registers commands and the participant
 resources/
-  builtin-suites/                # the built-in model benchmark: spec.json + the suite (shipped)
+└── builtin-suites/                # the built-in model benchmark: spec.json + the suite (shipped)
 benchmarks/
-  captured-run-benchmark.test.ts # evaluates a captured @deval run
-  agent-loop-benchmark.test.ts   # evaluates the @deval agent loop with a scripted model
-  metrics/                       # custom deterministic metrics
-scripts/patch-deepeval.mjs       # see "Known upstream issue" below
+├── captured-run-benchmark.test.ts # evaluates a captured @deval run
+├── agent-loop-benchmark.test.ts   # evaluates the @deval agent loop with a scripted model
+└── metrics/                       # custom deterministic metrics
+scripts/
+└── patch-deepeval.mjs             # see "Known upstream issue" below
 ```
 
 `vitest.config.mts` limits Vitest to `benchmarks/**` on purpose: `src/test/**` holds the Mocha suites, which import `vscode` and would fail inside Vitest.
