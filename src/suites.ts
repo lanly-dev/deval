@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { hasDeepEvalInstall, patchDeepEvalInstall } from './deepeval-patch';
 import { loadCapturedRun } from './events/event-log';
 import { scoreCapturedTrajectory, type TrajectoryCheck } from './events/score-trajectory';
+import { appendScore } from './scores';
 import { runDevalAgentHeadless } from './agent/participant';
 
 /** Folder the agent loop writes captures into, relative to the workspace root. */
@@ -241,6 +242,15 @@ export async function evaluateAgentRun(): Promise<void> {
 	}
 
 	await reportTrajectoryScore(captureUri, checks);
+
+	// Record the score so the scoreboard (command 3) can compare runs side by side.
+	const name = captureUri.path.split('/').pop() ?? captureUri.fsPath;
+	void appendScore(devalDirectoryUri(workspaceFolder).fsPath, {
+		timestamp: new Date().toISOString(),
+		kind: 'agent-run',
+		label: name,
+		checks: checks.map((check) => ({ label: check.label, passed: check.passed, detail: check.detail })),
+	});
 }
 
 /** Show the trajectory score: a pass/fail notification, with per-check details on demand. */
