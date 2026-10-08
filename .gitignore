@@ -1,8 +1,8 @@
 .deval/
+.deepeval/
 .vscode-test/
 *.vsix
 dist
 node_modules
 out
 package-lock.json
-
