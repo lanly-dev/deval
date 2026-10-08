@@ -3,9 +3,11 @@
 // prompt in the built-in spec, records the responses, stages the built-in
 // suite into the workspace, and runs it with the responses fed in.
 import * as vscode from 'vscode';
-import { relative, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join, relative, sep } from 'node:path';
 
-import { ensureDeepEvalReady, executeTaskWithReporting } from './suites';
+import { ensureDeepEvalReady, devalDirectoryUri, executeTaskWithReporting } from './suites';
+import { appendScore, type ScoreCheck } from './scores';
 import { pickChatModel } from './chat-models';
 
 /** Environment variable the staged suite reads the model responses from. */
@@ -164,5 +166,77 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 		}),
 	);
 	task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
-	await executeTaskWithReporting(task, label);
+	const succeeded = await executeTaskWithReporting(task, label);
+	if (succeeded) {
+		// Record the score so the scoreboard (command 3) can compare models side by side.
+		await recordBenchmarkScore(workspaceFolder, ready.cwd, runDirectory, model.name);
+	}
+}
+
+/**
+ * Read the DeepEval run's own results file and append one score record per
+ * benchmark case. Best-effort: a missing or unreadable results file only
+ * means this run won't appear on the scoreboard.
+ */
+async function recordBenchmarkScore(
+	workspaceFolder: vscode.WorkspaceFolder,
+	runCwd: string,
+	runDirectory: vscode.Uri,
+	modelName: string,
+): Promise<void> {
+	const checks = await readBenchmarkChecks(runCwd, vscode.Uri.joinPath(runDirectory, 'spec.json'));
+	if (!checks) {
+		return;
+	}
+	void appendScore(devalDirectoryUri(workspaceFolder).fsPath, {
+		timestamp: new Date().toISOString(),
+		kind: 'model-benchmark',
+		label: modelName,
+		checks,
+	});
+}
+
+/** Parse DeepEval's `.latest_test_run.json` into one check per benchmark case. */
+async function readBenchmarkChecks(runCwd: string, stagedSpecUri: vscode.Uri): Promise<ScoreCheck[] | undefined> {
+	let latest: { cases?: Array<{ metricsData?: Array<{ name?: string; success?: boolean; score?: number; reason?: string }> }> };
+	try {
+		latest = JSON.parse(await readFile(join(runCwd, '.deepeval', '.latest_test_run.json'), 'utf8'));
+	} catch {
+		return undefined;
+	}
+	const cases = Array.isArray(latest.cases) ? latest.cases : [];
+	if (!cases.length) {
+		return undefined;
+	}
+	// DeepEval's results file doesn't name the cases, so label them from the
+	// staged spec, which lists them in run order.
+	let caseIds: string[] = [];
+	try {
+		const spec = JSON.parse(await readFile(stagedSpecUri.fsPath, 'utf8'));
+		if (Array.isArray(spec)) {
+			caseIds = spec.map((entry, index) =>
+				typeof entry?.id === 'string' && entry.id ? entry.id : `case ${index + 1}`,
+			);
+		}
+	} catch {
+		// Fall back to positional labels below.
+	}
+	return cases.map((testCase, index) => {
+		const metrics = Array.isArray(testCase.metricsData) ? testCase.metricsData : [];
+		const failed = metrics.filter((metric) => metric.success === false);
+		return {
+			label: caseIds[index] ?? `case ${index + 1}`,
+			passed: metrics.length > 0 && failed.length === 0,
+			detail: metrics.length
+				? metrics
+						.map(
+							(metric) =>
+								`${metric.name ?? 'metric'}: ${metric.success === false ? 'fail' : 'pass'}${
+									typeof metric.score === 'number' ? ` (score ${metric.score})` : ''
+								}`,
+						)
+						.join('; ')
+				: 'no metrics reported',
+		};
+	});
 }

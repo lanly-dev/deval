@@ -38,6 +38,10 @@
       {
         "command": "deval.benchmarkChatModel",
         "title": "Deval: Benchmark Chat Model"
+      },
+      {
+        "command": "deval.showScoreboard",
+        "title": "Deval: Show Scoreboard"
       }
     ],
     "chatParticipants": [

@@ -24,6 +24,7 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 | --- | --- | --- |
 | 1 | `Deval: Evaluate Captured Agent Run` | Score a captured `.jsonl` trajectory in the extension — no suite files or installs needed. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
 | 2 | `Deval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
+| 3 | `Deval: Show Scoreboard` | Compare every recorded run side by side in a scoreboard webview. |
 
 Command 2 launches a VS Code task and reports the exit code in a notification when it finishes. It refuses to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing. The install goes into the workspace's `.deval/` folder — never into the workspace root — and the suite runs from there.
 
@@ -159,6 +160,16 @@ Each of the six cases passes when the response contains the required keywords (c
 
 This benchmarks the **model only** — prompt in, response out. It does not exercise VS Code's built-in agent harness: extensions can't drive or observe that loop through a stable API, which is why the fully observable `@deval` agent above exists for trajectory benchmarking.
 
+## Scoreboard
+
+`Deval: Show Scoreboard` compares runs against each other: every column is one run (oldest first), every row is a trajectory check (command 1) or a benchmark case (command 2), and each cell is ✓/✗ — hover it for the detail behind the score.
+
+- Command 1 appends one record per evaluation to `.deval/scores.jsonl`: the capture filename plus the 8 trajectory checks.
+- Command 2 appends one record per successful benchmark: the model name plus one check per built-in case, parsed from DeepEval's own results file.
+- The scoreboard reads `.deval/scores.jsonl` and renders agent runs and model benchmarks as two tables. With no history yet, it tells you to run command 1 or 2 first.
+
+So to compare two models, run command 2 once per model and open the scoreboard; to compare agent runs (different prompts, models, or code states), evaluate each capture with command 1 and open the scoreboard.
+
 ## Repository layout
 
 ```
@@ -174,6 +185,9 @@ src/
   events/event-writer.ts         # writes captures in the format event-log.ts reads
   events/score-trajectory.ts     # deterministic trajectory checks, shared by command 1 and the captured-run suite
   model-benchmark.ts             # the built-in chat-model benchmark command
+  scores.ts                      # score history: append/read .deval/scores.jsonl (dependency-free)
+  scoreboard.ts                  # renders the scoreboard webview HTML (dependency-free)
+  scoreboard-panel.ts            # command 3: opens the scoreboard webview
   suites.ts                      # the evaluate command, capture picker, install flow
   extension.ts                   # thin entry point: registers commands and the participant
   test/                          # extension-host tests (Mocha, via `npm test`)

@@ -4,6 +4,7 @@ import { commands, ExtensionContext } from 'vscode';
 
 import { registerChatParticipant } from './agent/participant';
 import { runModelBenchmark } from './model-benchmark';
+import { showScoreboard } from './scoreboard-panel';
 import { evaluateAgentRun } from './suites';
 
 export function activate(context: ExtensionContext) {
@@ -11,7 +12,8 @@ export function activate(context: ExtensionContext) {
 
 	const d1 = rc('deval.evaluateAgentRun', () => evaluateAgentRun());
 	const d2 = rc('deval.benchmarkChatModel', () => runModelBenchmark(context));
-	context.subscriptions.push(d1, d2);
+	const d3 = rc('deval.showScoreboard', () => showScoreboard());
+	context.subscriptions.push(d1, d2, d3);
 
 	void registerChatParticipant(context);
 }
