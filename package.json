@@ -32,10 +32,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "deval.runDeepEval",
-        "title": "Deval: Run Test Suite"
-      },
-      {
         "command": "deval.evaluateAgentRun",
         "title": "Deval: Evaluate Captured Agent Run"
       },

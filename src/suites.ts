@@ -54,18 +54,12 @@ export async function findDeepEvalTestFiles(): Promise<vscode.Uri[]> {
  * Ask the user which captured `@deval` run to evaluate.
  *
  * When no capture exists yet, offers to run the Deval agent now and evaluates
- * the run it creates. Returns `undefined` when the caller did not ask for a
- * capture (`withCapturedRun` is false), when the user declined to create one,
- * or when the user cancelled the picker.
+ * the run it creates. Returns `undefined` when the user declined to create
+ * one or cancelled the picker.
  */
 export async function selectDeepEvalRun(
 	workspaceFolder: vscode.WorkspaceFolder,
-	withCapturedRun: boolean,
 ): Promise<vscode.Uri | undefined> {
-	if (!withCapturedRun) {
-		return undefined;
-	}
-
 	const eventsDirectory = vscode.Uri.joinPath(workspaceFolder.uri, ...CAPTURED_RUN_DIRECTORY);
 	const runFiles = await listCaptureFiles(eventsDirectory);
 	if (!runFiles.length) {
@@ -240,7 +234,7 @@ export async function ensureDeepEvalReady(
 	return command;
 }
 
-export async function runDeepEval(withCapturedRun = false): Promise<void> {
+export async function evaluateAgentRun(): Promise<void> {
 	if (!vscode.workspace.workspaceFolders?.length) {
 		vscode.window.showWarningMessage('Open a workspace folder to run DeepEval tests.');
 		return;
@@ -277,8 +271,8 @@ export async function runDeepEval(withCapturedRun = false): Promise<void> {
 		return;
 	}
 
-	const eventsFile = await selectDeepEvalRun(workspaceFolder, withCapturedRun);
-	if (withCapturedRun && !eventsFile) {
+	const eventsFile = await selectDeepEvalRun(workspaceFolder);
+	if (!eventsFile) {
 		return;
 	}
 

@@ -22,9 +22,8 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 
 | # | Command | What it does |
 | --- | --- | --- |
-| 1 | `Deval: Run Test Suite` | Pick a `*.test.ts` / `*.spec.ts` suite and run it with `deepeval test run`. |
-| 2 | `Deval: Evaluate Captured Agent Run` | Pick a captured `.jsonl` from `.deepeval/vscode-agent-events/` and run the captured-run suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
-| 3 | `Deval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
+| 1 | `Deval: Evaluate Captured Agent Run` | Pick a captured `.jsonl` from `.deepeval/vscode-agent-events/` and run the captured-run suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
+| 2 | `Deval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
 
 Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
 
@@ -115,7 +114,7 @@ The captured-run suite evaluates the **trajectory** — prompts, tool names, pai
 
 **Privacy:** captures contain prompts, tool arguments, and tool results, so `.deepeval/` is Git-ignored. Do not commit it.
 
-Command 2 (`Deval: Evaluate Captured Agent Run`) offers to run the Deval agent for you when no capture exists yet — you type (or accept) a prompt, the agent runs headlessly with a progress notification, and the run it creates is evaluated straight away.
+Command 1 (`Deval: Evaluate Captured Agent Run`) offers to run the Deval agent for you when no capture exists yet — you type (or accept) a prompt, the agent runs headlessly with a progress notification, and the run it creates is evaluated straight away.
 
 ## The `@deval` agent
 

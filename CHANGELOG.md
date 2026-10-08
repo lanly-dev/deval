@@ -17,8 +17,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Changed
 
 - Commands are renamed from `DeepEval: …` to `Deval: …` (palette titles, task labels, and docs).
-- `Deval: Evaluate Captured Agent Run` (command 2) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates.
-- Commands are numbered 1–3 in the README so they can be referenced by number.
+- `Deval: Evaluate Captured Agent Run` (command 1) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates.
+- Commands are numbered 1–2 in the README so they can be referenced by number.
+- Removed `Deval: Run Test Suite` (command 1) — running arbitrary workspace suites is out; the extension's flows are the built-in evaluate and model-benchmark commands. The bundled suites still run via `npm run benchmark`.
 
 ### Removed
 
