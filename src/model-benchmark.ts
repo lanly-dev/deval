@@ -52,15 +52,41 @@ async function askModel(
 	prompt: string,
 	token: vscode.CancellationToken,
 ): Promise<string> {
-	const response = await model.sendRequest([vscode.LanguageModelChatMessage.User(prompt)], {}, token);
-	let text = '';
-	for await (const part of response.text) {
-		if (token.isCancellationRequested) {
-			break;
+	const answer = (async (): Promise<string> => {
+		const response = await model.sendRequest([vscode.LanguageModelChatMessage.User(prompt)], {}, token);
+		let text = '';
+		for await (const part of response.text) {
+			if (token.isCancellationRequested) {
+				break;
+			}
+			text += part;
 		}
-		text += part;
-	}
-	return text;
+		return text;
+	})();
+	// A stalled model stream would otherwise hang the whole benchmark (and no
+	// score would ever be recorded). Time out instead; the caller records the
+	// error against that case and moves on.
+	return withTimeout(answer, MODEL_PROMPT_TIMEOUT_MS, 'Chat model response');
+}
+
+/**
+ * One benchmark prompt may take this long before it counts as hung. These
+ * are one-sentence prompts; anything slower is a stalled model, not a slow
+ * one.
+ */
+const MODEL_PROMPT_TIMEOUT_MS = 180_000;
+
+/** Reject when `promise` takes longer than `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new Error(`${what} timed out after ${Math.round(ms / 1000)}s`)), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => {
+		if (timer !== undefined) {
+			clearTimeout(timer);
+		}
+	});
 }
 
 /**
