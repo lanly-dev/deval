@@ -9,6 +9,11 @@ import {
 } from './capture-hook';
 import { hasDeepEvalInstall, patchDeepEvalInstall } from './deepeval-patch';
 import { DEEPEVAL_VSCODE_EVENTS } from './events/event-log';
+import { createCaptureWriter } from './events/event-writer';
+import { runAgentLoop, type EventPort } from './agent/loop';
+import { DEVAL_TOOL_SCHEMAS } from './agent/tool-schemas';
+import { registerDevalTools } from './agent/tools';
+import { createVscodeModelPort, createVscodeToolPort } from './agent/vscode-adapter';
 
 /** Folder the hook writes captures into, relative to the workspace root. */
 export const CAPTURED_RUN_DIRECTORY = ['.deepeval', 'vscode-agent-events'];
@@ -53,41 +58,61 @@ export async function findDeepEvalTestFiles(): Promise<vscode.Uri[]> {
 	return mergeUniqueUris(...discoveryGroups);
 }
 
-function buildChatMessages(chatContext: vscode.ChatContext, request: vscode.ChatRequest): vscode.LanguageModelChatMessage[] {
-	const messages: vscode.LanguageModelChatMessage[] = [
-		vscode.LanguageModelChatMessage.User(
-			'You are Deval, a helpful local agent harness. Answer the user clearly and accurately.',
-		),
-	];
+/** System instruction for the `@deval` agent loop. */
+export const DEVAL_AGENT_SYSTEM_PROMPT =
+	'You are Deval, a helpful coding assistant inside VS Code. ' +
+	'You have read-only tools to inspect the workspace: read files, list directories, and search file contents. ' +
+	'Use them to ground your answers in the actual workspace instead of guessing. ' +
+	'Call a tool whenever you need information you do not already have, then answer concisely.';
 
-	for (const turn of chatContext.history) {
-		if (turn instanceof vscode.ChatRequestTurn) {
-			messages.push(vscode.LanguageModelChatMessage.User(turn.prompt));
-		} else if (turn instanceof vscode.ChatResponseTurn) {
-			const text = turn.response
-				.filter((part): part is vscode.ChatResponseMarkdownPart => part instanceof vscode.ChatResponseMarkdownPart)
-				.map((part) => part.value.value)
-				.join('');
-			if (text) {
-				messages.push(vscode.LanguageModelChatMessage.Assistant(text));
-			}
-		}
-	}
-
-	messages.push(vscode.LanguageModelChatMessage.User(request.prompt));
-	return messages;
-}
-
+/**
+ * Run the `@deval` agent: an agentic loop over the chat model with tools.
+ *
+ * Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl`
+ * in the workspace's own capture format, so `DeepEval: Evaluate Captured
+ * Local Agent Run` can score the agent's trajectory without any extra wiring.
+ */
 async function registerChatParticipant(context: vscode.ExtensionContext) {
-	const participant = vscode.chat.createChatParticipant('deval.agent', async (request, chatContext, response, token) => {
-		const messages = buildChatMessages(chatContext, request);
-		const modelResponse = await request.model.sendRequest(messages, {}, token);
-		for await (const fragment of modelResponse.text) {
-			response.markdown(fragment);
-		}
-	});
+	const participant = vscode.chat.createChatParticipant(
+		'deval.agent',
+		async (request, _chatContext, response, token) => {
+			const folders = vscode.workspace.workspaceFolders;
+			if (!folders?.length) {
+				response.markdown('Open a workspace folder to use the deval agent.');
+				return;
+			}
 
-	context.subscriptions.push(participant);
+			const writer = createCaptureWriter(folders[0].uri.fsPath);
+			const events: EventPort = {
+				record: (event) => writer.append(event),
+			};
+			const model = createVscodeModelPort(request.model, token, (chunk) =>
+				response.markdown(chunk),
+			);
+			const tools = createVscodeToolPort(token, request.toolInvocationToken);
+
+			response.progress('Deval agent is working…');
+			try {
+				const run = await runAgentLoop(
+					request.prompt,
+					{ model, tools, events },
+					{ toolSchemas: DEVAL_TOOL_SCHEMAS, systemPrompt: DEVAL_AGENT_SYSTEM_PROMPT },
+				);
+				if (!run.output.trim()) {
+					response.markdown('_The agent finished without producing text._');
+				}
+				response.markdown(
+					`\n\n---\nFinished with ${run.toolsCalled.length} tool call(s). ` +
+						'This run was captured for benchmarking.',
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				response.markdown(`\n\nThe agent loop failed: ${message}`);
+			}
+		},
+	);
+
+	context.subscriptions.push(participant, registerDevalTools());
 }
 
 /**

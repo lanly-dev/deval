@@ -4,6 +4,15 @@ All notable changes to the `deval` extension are documented here.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Added
+
+- `@deval` is now a real tool-calling agent instead of a chat forwarder. It runs an agentic loop (`src/agent/loop.ts`) against the Chat model with three read-only tools — `deval_readFile`, `deval_listFiles`, `deval_grep` — declared in `package.json` and registered via `vscode.lm`.
+- `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `DeepEval: Evaluate Captured Local Agent Run` scores the agent's trajectory with no extra wiring.
+- `benchmarks/agent-loop-benchmark.test.ts` — deterministic suite driving the loop with a scripted model through `observe()`, asserting with `ContainsAllMetric` and `ToolCorrectnessMetric`.
+- Unit tests for the loop core (fake model/tool ports) and the capture writer.
+
 ## [0.1.0]
 
 First complete starter release.

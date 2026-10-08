@@ -56,6 +56,57 @@
         "description": "A local chat harness for evaluating agent behavior with DeepEval suites."
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "deval_readFile",
+        "displayName": "Read file",
+        "modelDescription": "Reads the full text contents of a file in the workspace. Input: { path: workspace-relative file path }.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Workspace-relative path of the file to read, e.g. \"src/extension.ts\"."
+            }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "deval_listFiles",
+        "displayName": "List files",
+        "modelDescription": "Lists the files and directories directly inside a workspace folder, non-recursive. Input: { directory?: workspace-relative directory, defaults to the workspace root }.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "type": "string",
+              "description": "Workspace-relative directory to list. Defaults to the workspace root."
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "deval_grep",
+        "displayName": "Search file contents",
+        "modelDescription": "Searches file contents for a text pattern across the workspace and returns matching lines. Input: { pattern: text or regular expression to search for, directory?: workspace-relative directory to search }.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "The text or regular expression to search for."
+            },
+            "directory": {
+              "type": "string",
+              "description": "Workspace-relative directory to search. Defaults to the workspace root."
+            }
+          },
+          "required": ["pattern"]
+        }
+      }
+    ],
     "configuration": {
       "title": "DeepEval",
       "properties": {

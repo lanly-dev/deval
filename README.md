@@ -124,25 +124,47 @@ Two behaviours worth knowing:
 
 **Privacy:** captures contain prompts, tool arguments, tool results, and a `transcript_path` into your VS Code history, so `.deepeval/` is Git-ignored. Do not commit it.
 
-## The `@deval` chat participant
+## The `@deval` agent
 
-`@deval` sends the conversation to the model selected in Chat and streams the response. It is an extension-owned chat participant, not a hook into GitHub Copilot's built-in agent mode.
+`@deval` is a real tool-calling agent, not just a chat forwarder. When you send it a prompt, it runs an agentic loop against the model selected in Chat:
 
-The test runner executes **outside** the extension host, so it cannot call the participant's `vscode.lm` request. That is exactly why `src/agent-harness.ts` exists as a plain, importable seam: the suites call the harness, and you point the harness at whatever agent you want to measure.
+1. The model decides whether it needs information, and calls a tool.
+2. The extension executes the tool and feeds the result back.
+3. The loop repeats until the model answers, or stops after 10 turns.
+
+v1 ships three **read-only** tools, so the agent needs no confirmation UX:
+
+| Tool | What it does |
+| --- | --- |
+| `deval_readFile` | Reads a workspace file's full text. |
+| `deval_listFiles` | Lists a workspace directory, non-recursive. |
+| `deval_grep` | Searches file contents for a pattern. |
+
+Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl` in the workspace's own capture format — the same format the Local-harness hook writes. That means `DeepEval: Evaluate Captured Local Agent Run` scores the agent's trajectory with no extra wiring, and `benchmarks/agent-loop-benchmark.test.ts` measures the loop itself with a scripted model.
+
+The loop core (`src/agent/loop.ts`) is dependency-free, like `agent-harness.ts`: it takes the model, the tools, and the capture sink as ports, so the same code runs in the extension host (via `src/agent/vscode-adapter.ts`), in unit tests with fakes, and in benchmark suites.
+
+It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent mode. The model comes from the user's Chat model picker via the Language Model API — no API key needed.
 
 ## Repository layout
 
 ```
 src/
   agent-harness.ts               # the agent under test (replace this)
+  agent/loop.ts                  # dependency-free agentic loop: model turns, tool dispatch, capture
+  agent/tool-schemas.ts          # the read-only tools the @deval agent can call (dependency-free)
+  agent/tools.ts                 # vscode.lm tool registration + implementations
+  agent/vscode-adapter.ts        # adapts the loop to vscode.lm (messages, tool calls, streaming)
   capture-hook.ts                # the embedded capture hook, written into any workspace
   deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
   events/event-log.ts            # JSONL capture parser + trajectory summarizer
+  events/event-writer.ts         # writes captures in the format event-log.ts reads
   extension.ts                   # commands, chat participant, task runner, scaffolder
   test/                          # extension-host tests (Mocha, via `npm test`)
 benchmarks/
   todo-benchmark.test.ts         # evaluates the reference agent through a trace
   captured-run-benchmark.test.ts # evaluates a captured Local-harness run
+  agent-loop-benchmark.test.ts   # evaluates the @deval agent loop with a scripted model
   metrics/                       # custom deterministic metrics
 scripts/patch-deepeval.mjs       # see "Known upstream issue" below
 ```
