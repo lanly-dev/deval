@@ -4,15 +4,14 @@ import { commands, ExtensionContext } from 'vscode';
 
 import { registerChatParticipant } from './agent/participant';
 import { runModelBenchmark } from './model-benchmark';
-import { runDeepEval } from './suites';
+import { evaluateAgentRun } from './suites';
 
 export function activate(context: ExtensionContext) {
 	const rc = commands.registerCommand;
 
-	const d1 = rc('deval.runDeepEval', () => runDeepEval());
-	const d2 = rc('deval.evaluateAgentRun', () => runDeepEval(true));
-	const d3 = rc('deval.benchmarkChatModel', () => runModelBenchmark(context));
-	context.subscriptions.push(d1, d2, d3);
+	const d1 = rc('deval.evaluateAgentRun', () => evaluateAgentRun());
+	const d2 = rc('deval.benchmarkChatModel', () => runModelBenchmark(context));
+	context.subscriptions.push(d1, d2);
 
 	void registerChatParticipant(context);
 }

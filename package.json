@@ -32,16 +32,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "deval.runDeepEval",
-        "title": "DeepEval: Run Test Suite"
-      },
-      {
         "command": "deval.evaluateAgentRun",
-        "title": "DeepEval: Evaluate Captured Agent Run"
+        "title": "Deval: Evaluate Captured Agent Run"
       },
       {
         "command": "deval.benchmarkChatModel",
-        "title": "DeepEval: Benchmark Chat Model"
+        "title": "Deval: Benchmark Chat Model"
       }
     ],
     "chatParticipants": [

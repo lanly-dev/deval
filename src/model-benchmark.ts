@@ -1,10 +1,11 @@
 // Built-in benchmark for the chat model wired to VS Code.
-// `DeepEval: Benchmark Chat Model` asks the user's selected chat model every
+// `Deval: Benchmark Chat Model` asks the user's selected chat model every
 // prompt in the built-in spec, records the responses, stages the built-in
 // suite into the workspace, and runs it with the responses fed in.
 import * as vscode from 'vscode';
 
 import { ensureDeepEvalReady, executeTaskWithReporting } from './suites';
+import { pickChatModel } from './chat-models';
 
 /** Environment variable the staged suite reads the model responses from. */
 export const MODEL_BENCHMARK_ENV = 'DEEPEVAL_MODEL_RESPONSES';
@@ -59,28 +60,6 @@ async function askModel(
 	return text;
 }
 
-async function pickModel(): Promise<vscode.LanguageModelChat | undefined> {
-	const models = await vscode.lm.selectChatModels();
-	if (!models.length) {
-		void vscode.window.showWarningMessage(
-			'No chat models are available. Select a model in the VS Code Chat view first — the benchmark tests whichever model you have wired up.',
-		);
-		return undefined;
-	}
-	if (models.length === 1) {
-		return models[0];
-	}
-	const picked = await vscode.window.showQuickPick(
-		models.map((model) => ({
-			label: model.name,
-			description: [model.vendor, model.family].filter(Boolean).join(' · '),
-			model,
-		})),
-		{ placeHolder: 'Select the chat model to benchmark' },
-	);
-	return picked?.model;
-}
-
 /**
  * Run the built-in model benchmark: query the wired chat model, record its
  * answers, and score them with the suite that ships in `resources/`.
@@ -93,7 +72,7 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 	}
 	const workspaceFolder = folders[0];
 
-	const model = await pickModel();
+	const model = await pickChatModel();
 	if (!model) {
 		return;
 	}
@@ -170,12 +149,12 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 	}
 
 	const relativeSuitePath = vscode.workspace.asRelativePath(stagedSuiteUri, false);
-	const label = `DeepEval: Benchmark ${model.name}`;
+	const label = `Deval: Benchmark ${model.name}`;
 	const task = new vscode.Task(
 		{ type: 'deepeval', benchmark: 'model' },
 		workspaceFolder,
 		label,
-		'DeepEval',
+		'Deval',
 		new vscode.ProcessExecution(command, ['deepeval', 'test', 'run', relativeSuitePath], {
 			cwd: workspaceFolder.uri.fsPath,
 			env: { [MODEL_BENCHMARK_ENV]: responsesUri.fsPath },

@@ -9,10 +9,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 
 - `@deval` is now a real tool-calling agent instead of a chat forwarder. It runs an agentic loop (`src/agent/loop.ts`) against the Chat model with three read-only tools — `deval_readFile`, `deval_listFiles`, `deval_grep` — declared in `package.json` and registered via `vscode.lm`.
-- `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `DeepEval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring.
+- `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `Deval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring.
 - `benchmarks/agent-loop-benchmark.test.ts` — deterministic suite driving the loop with a scripted model through `observe()`, asserting with `ContainsAllMetric` and `ToolCorrectnessMetric`.
 - Unit tests for the loop core (fake model/tool ports) and the capture writer.
-- `DeepEval: Benchmark Chat Model` — benchmarks the chat model wired to VS Code (`vscode.lm`) with a built-in suite that ships in `resources/builtin-suites/`: six deterministic cases (recall, exact-output, arithmetic, code, formatting, summary). Each run keeps everything in one folder — `.deepeval/model-benchmark/<timestamp>/` holds the model's answers, the suite, and the spec — and runs with `DEEPEVAL_MODEL_RESPONSES` pointing at the answers. Works in any workspace, no test files needed.
+- `Deval: Benchmark Chat Model` — benchmarks the chat model wired to VS Code (`vscode.lm`) with a built-in suite that ships in `resources/builtin-suites/`: six deterministic cases (recall, exact-output, arithmetic, code, formatting, summary). Each run keeps everything in one folder — `.deepeval/model-benchmark/<timestamp>/` holds the model's answers, the suite, and the spec — and runs with `DEEPEVAL_MODEL_RESPONSES` pointing at the answers. Works in any workspace, no test files needed.
+
+### Changed
+
+- Commands are renamed from `DeepEval: …` to `Deval: …` (palette titles, task labels, and docs).
+- `Deval: Evaluate Captured Agent Run` (command 1) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates.
+- Commands are numbered 1–2 in the README so they can be referenced by number.
+- Removed `Deval: Run Test Suite` (command 1) — running arbitrary workspace suites is out; the extension's flows are the built-in evaluate and model-benchmark commands. The bundled suites still run via `npm run benchmark`.
 
 ### Removed
 

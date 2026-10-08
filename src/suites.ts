@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import { hasDeepEvalInstall, patchDeepEvalInstall } from './deepeval-patch';
 import { DEEPEVAL_VSCODE_EVENTS } from './events/event-log';
+import { runDevalAgentHeadless } from './agent/participant';
 
 /** Folder the agent loop writes captures into, relative to the workspace root. */
 export const CAPTURED_RUN_DIRECTORY = ['.deepeval', 'vscode-agent-events'];
@@ -52,32 +53,17 @@ export async function findDeepEvalTestFiles(): Promise<vscode.Uri[]> {
 /**
  * Ask the user which captured `@deval` run to evaluate.
  *
- * Returns `undefined` when the caller did not ask for a capture
- * (`withCapturedRun` is false) or when the user cancelled the picker.
+ * When no capture exists yet, offers to run the Deval agent now and evaluates
+ * the run it creates. Returns `undefined` when the user declined to create
+ * one or cancelled the picker.
  */
 export async function selectDeepEvalRun(
 	workspaceFolder: vscode.WorkspaceFolder,
-	withCapturedRun: boolean,
 ): Promise<vscode.Uri | undefined> {
-	if (!withCapturedRun) {
-		return undefined;
-	}
-
 	const eventsDirectory = vscode.Uri.joinPath(workspaceFolder.uri, ...CAPTURED_RUN_DIRECTORY);
-	let entries: [string, vscode.FileType][];
-	try {
-		entries = await vscode.workspace.fs.readDirectory(eventsDirectory);
-	} catch {
-		await reportMissingCaptures(workspaceFolder, eventsDirectory);
-		return undefined;
-	}
-
-	const runFiles = entries
-		.filter(([name, type]) => type === vscode.FileType.File && name.endsWith('.jsonl'))
-		.map(([name]) => vscode.Uri.joinPath(eventsDirectory, name));
+	const runFiles = await listCaptureFiles(eventsDirectory);
 	if (!runFiles.length) {
-		await reportMissingCaptures(workspaceFolder, eventsDirectory);
-		return undefined;
+		return createCaptureNow(workspaceFolder);
 	}
 
 	const selectedRun = await vscode.window.showQuickPick(
@@ -90,14 +76,53 @@ export async function selectDeepEvalRun(
 	return selectedRun.uri;
 }
 
-/** True when `uri` can be stat'ed, i.e. it already exists. */
-async function fileExists(uri: vscode.Uri): Promise<boolean> {
+/** Default prompt for the agent run the evaluate command creates when no capture exists yet. */
+export const DEFAULT_EVAL_PROMPT =
+	'List the files in the workspace root and summarize what this project is about.';
+
+async function listCaptureFiles(eventsDirectory: vscode.Uri): Promise<vscode.Uri[]> {
+	let entries: [string, vscode.FileType][];
 	try {
-		await vscode.workspace.fs.stat(uri);
-		return true;
+		entries = await vscode.workspace.fs.readDirectory(eventsDirectory);
 	} catch {
-		return false;
+		return [];
 	}
+	return entries
+		.filter(([name, type]) => type === vscode.FileType.File && name.endsWith('.jsonl'))
+		.map(([name]) => vscode.Uri.joinPath(eventsDirectory, name));
+}
+
+/**
+ * Offer to run the Deval agent now so there is a capture to evaluate.
+ *
+ * Resolves to the new capture's Uri — used directly, skipping the picker —
+ * or `undefined` when the user declined or the run did not complete.
+ */
+async function createCaptureNow(
+	workspaceFolder: vscode.WorkspaceFolder,
+): Promise<vscode.Uri | undefined> {
+	const runNow = 'Run Deval agent now';
+	const choice = await vscode.window.showWarningMessage(
+		describeMissingCaptures({
+			workspaceName: workspaceFolder.name,
+			eventsDirectory: vscode.workspace.asRelativePath(
+				vscode.Uri.joinPath(workspaceFolder.uri, ...CAPTURED_RUN_DIRECTORY),
+				false,
+			),
+		}),
+		runNow,
+	);
+	if (choice !== runNow) {
+		return undefined;
+	}
+	const prompt = await vscode.window.showInputBox({
+		prompt: 'What should the Deval agent do? Its run will be captured and evaluated.',
+		value: DEFAULT_EVAL_PROMPT,
+	});
+	if (!prompt) {
+		return undefined;
+	}
+	return runDevalAgentHeadless(workspaceFolder, prompt);
 }
 
 /**
@@ -114,19 +139,6 @@ export function describeMissingCaptures(details: {
 		`No captured agent runs found in "${details.workspaceName}". ` +
 		`Looked in ${details.eventsDirectory}. ` +
 		`Chat with @deval first — every run is captured automatically.`
-	);
-}
-
-/** Report an empty capture directory. Resolves once the message is gone. */
-async function reportMissingCaptures(
-	workspaceFolder: vscode.WorkspaceFolder,
-	eventsDirectory: vscode.Uri,
-): Promise<void> {
-	await vscode.window.showWarningMessage(
-		describeMissingCaptures({
-			workspaceName: workspaceFolder.name,
-			eventsDirectory: vscode.workspace.asRelativePath(eventsDirectory, false),
-		}),
 	);
 }
 
@@ -222,7 +234,7 @@ export async function ensureDeepEvalReady(
 	return command;
 }
 
-export async function runDeepEval(withCapturedRun = false): Promise<void> {
+export async function evaluateAgentRun(): Promise<void> {
 	if (!vscode.workspace.workspaceFolders?.length) {
 		vscode.window.showWarningMessage('Open a workspace folder to run DeepEval tests.');
 		return;
@@ -259,18 +271,18 @@ export async function runDeepEval(withCapturedRun = false): Promise<void> {
 		return;
 	}
 
-	const eventsFile = await selectDeepEvalRun(workspaceFolder, withCapturedRun);
-	if (withCapturedRun && !eventsFile) {
+	const eventsFile = await selectDeepEvalRun(workspaceFolder);
+	if (!eventsFile) {
 		return;
 	}
 
 	const relativeTestPath = vscode.workspace.asRelativePath(selectedFile.uri, false);
-	const label = `DeepEval: ${selectedFile.label}`;
+	const label = `Deval: ${selectedFile.label}`;
 	const task = new vscode.Task(
 		{ type: 'deepeval', testFile: relativeTestPath },
 		workspaceFolder,
 		label,
-		'DeepEval',
+		'Deval',
 		new vscode.ProcessExecution(command, ['deepeval', 'test', 'run', relativeTestPath], {
 			cwd: workspaceFolder.uri.fsPath,
 			env: eventsFile ? { DEEPEVAL_VSCODE_EVENTS: eventsFile.fsPath } : undefined,
@@ -323,12 +335,12 @@ async function installDeepEvalDependencies(folder: vscode.WorkspaceFolder): Prom
 	const install = new vscode.Task(
 		{ type: 'deepeval', install: true },
 		folder,
-		'DeepEval: Install dependencies',
-		'DeepEval',
+		'Deval: Install dependencies',
+		'Deval',
 		new vscode.ProcessExecution(command, args, { cwd: folder.uri.fsPath }),
 	);
 	install.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
-	const succeeded = await executeTaskWithReporting(install, 'DeepEval: Install dependencies');
+	const succeeded = await executeTaskWithReporting(install, 'Deval: Install dependencies');
 	if (succeeded) {
 		// A fresh install ships the broken CLI; repair it before the user runs it.
 		applyDeepEvalPatch(folder.uri.fsPath);
