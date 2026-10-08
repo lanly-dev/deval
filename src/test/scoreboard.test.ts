@@ -45,6 +45,13 @@ suite('scoreboard', () => {
 		assert.ok(html.includes('class="na"'), 'missing check renders as —');
 	});
 
+	test('shows the model in the run header when recorded', () => {
+		const html = renderScoreboardHtml([{ ...agentRun('a.jsonl'), model: 'GPT-5' }, agentRun('b.jsonl')]);
+		assert.ok(html.includes('GPT-5 ·'), 'model appears in the header meta line');
+		// Only one run has a model; the other header must not gain a stray separator.
+		assert.strictEqual((html.match(/GPT-5 ·/g) ?? []).length, 1);
+	});
+
 	test('escapes HTML in labels and details', () => {
 		const html = renderScoreboardHtml([
 			{

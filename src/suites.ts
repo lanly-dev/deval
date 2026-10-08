@@ -241,8 +241,10 @@ export async function evaluateAgentRun(): Promise<void> {
 	}
 
 	let checks: TrajectoryCheck[];
+	let runModel: string | undefined;
 	try {
 		const loaded = loadCapturedRun(captureUri.fsPath);
+		runModel = loaded.summary.model;
 		checks = scoreCapturedTrajectory({
 			summary: loaded.summary,
 			skippedLines: loaded.parsed.skippedLines,
@@ -261,6 +263,7 @@ export async function evaluateAgentRun(): Promise<void> {
 		timestamp: new Date().toISOString(),
 		kind: 'agent-run',
 		label: name,
+		model: runModel,
 		checks: checks.map((check) => ({ label: check.label, passed: check.passed, detail: check.detail })),
 	});
 }

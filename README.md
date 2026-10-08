@@ -164,7 +164,7 @@ This benchmarks the **model only** — prompt in, response out. It does not exer
 
 `Deval: Show Scoreboard` compares runs against each other: every column is one run (oldest first), every row is a trajectory check (command 1) or a benchmark case (command 2), and each cell is ✓/✗ — hover it for the detail behind the score.
 
-- Command 1 appends one record per evaluation to `.deval/scores.jsonl`: the capture filename plus the 8 trajectory checks.
+- Command 1 appends one record per evaluation to `.deval/scores.jsonl`: the capture filename, the chat model behind the run (recorded in the capture's `SessionStart` event), plus the 8 trajectory checks.
 - Command 2 appends one record per successful benchmark: the model name plus one check per built-in case, parsed from DeepEval's own results file.
 - The scoreboard reads `.deval/scores.jsonl` and renders agent runs and model benchmarks as two tables. With no history yet, it tells you to run command 1 or 2 first.
 

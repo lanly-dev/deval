@@ -27,6 +27,8 @@ export interface ScoreRecord {
 	kind: ScoreKind;
 	/** Short label: the capture filename for command 1, the model name for command 2. */
 	label: string;
+	/** Chat model behind an agent run, when the capture recorded one. */
+	model?: string;
 	checks: ScoreCheck[];
 }
 
@@ -88,6 +90,7 @@ export async function readScores(devalDir: string): Promise<ScoreRecord[]> {
 				timestamp: parsed.timestamp,
 				kind: parsed.kind === 'model-benchmark' ? 'model-benchmark' : 'agent-run',
 				label: typeof parsed.label === 'string' && parsed.label ? parsed.label : 'run',
+				model: typeof parsed.model === 'string' && parsed.model ? parsed.model : undefined,
 				checks,
 			});
 		} catch {
