@@ -121,7 +121,7 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 	// files there instead of running them from the extension's install
 	// directory. Everything for one run lives in a single timestamped folder.
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-	const runDirectory = vscode.Uri.joinPath(workspaceFolder.uri, '.deepeval', 'model-benchmark', timestamp);
+	const runDirectory = vscode.Uri.joinPath(workspaceFolder.uri, '.deval', 'model-benchmark', timestamp);
 	const responsesUri = vscode.Uri.joinPath(runDirectory, 'responses.json');
 	const stagedSuiteUri = vscode.Uri.joinPath(runDirectory, 'model-benchmark.test.ts');
 	try {

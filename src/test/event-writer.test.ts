@@ -40,7 +40,7 @@ suite('capture writer', () => {
 
 		assert.strictEqual(
 			writer.filePath,
-			join(root, '.deepeval', 'vscode-agent-events', 'abc.jsonl'),
+			join(root, '.deval', 'vscode-agent-events', 'abc.jsonl'),
 		);
 		assert.ok(!existsSync(writer.filePath), 'file appears on first append, not on open');
 		writer.append({ hook_event_name: 'Stop' });

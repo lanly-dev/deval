@@ -9,7 +9,7 @@ import { scoreCapturedTrajectory, type TrajectoryCheck } from './events/score-tr
 import { runDevalAgentHeadless } from './agent/participant';
 
 /** Folder the agent loop writes captures into, relative to the workspace root. */
-export const CAPTURED_RUN_DIRECTORY = ['.deepeval', 'vscode-agent-events'];
+export const CAPTURED_RUN_DIRECTORY = ['.deval', 'vscode-agent-events'];
 
 /**
  * Ask the user which captured `@deval` run to evaluate.
@@ -272,7 +272,7 @@ const INSTALL_ARGUMENTS: Record<PackageManager, string[]> = {
 /**
  * Build the command that installs the benchmark dependencies.
  *
- * Deliberately *not* derived from `deval.deepevalCommand`: that setting names
+ * Deliberately *not* derived from `deval.devalCommand`: that setting names
  * the DeepEval runner (`npx`), and `npx install --save-dev deepeval vitest`
  * makes npx look for an executable called `install`, which fails with
  * "could not determine executable to run".

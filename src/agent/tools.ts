@@ -25,7 +25,7 @@ const MAX_FILE_BYTES = 100_000;
 const MAX_GREP_MATCHES = 50;
 
 /** Directories the grep tool never descends into. */
-const GREP_IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', 'out', '.vscode-test', '.deepeval']);
+const GREP_IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', 'out', '.vscode-test', '.deval']);
 
 function workspaceRoot(): string {
 	const folder = vscode.workspace.workspaceFolders?.[0];

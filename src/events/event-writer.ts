@@ -39,7 +39,7 @@ export function sanitizeSessionId(sessionId: string): string {
 /**
  * Open a capture for writing.
  *
- * The file is `<workspaceDir>/.deepeval/vscode-agent-events/<sessionId>.jsonl`
+ * The file is `<workspaceDir>/.deval/vscode-agent-events/<sessionId>.jsonl`
  * — the same directory `CAPTURED_RUN_DIRECTORY` points at, so
  * `Deval: Evaluate Captured Agent Run` offers agent-loop runs without
  * any extra wiring. The directory is created on open; each `append` adds one
@@ -47,7 +47,7 @@ export function sanitizeSessionId(sessionId: string): string {
  */
 export function createCaptureWriter(workspaceDir: string, sessionId: string = randomUUID()): CaptureWriter {
 	const safeId = sanitizeSessionId(sessionId);
-	const directory = join(workspaceDir, '.deepeval', 'vscode-agent-events');
+	const directory = join(workspaceDir, '.deval', 'vscode-agent-events');
 	mkdirSync(directory, { recursive: true });
 	const filePath = join(directory, `${safeId}.jsonl`);
 

@@ -23,7 +23,7 @@ suite('Suites Test Suite', () => {
 	});
 
 	test('captured runs live under the documented relative directory', () => {
-		assert.deepStrictEqual(CAPTURED_RUN_DIRECTORY, ['.deepeval', 'vscode-agent-events']);
+		assert.deepStrictEqual(CAPTURED_RUN_DIRECTORY, ['.deval', 'vscode-agent-events']);
 	});
 
 	test('the capture environment variable name matches the hook contract', () => {
@@ -32,7 +32,7 @@ suite('Suites Test Suite', () => {
 
 	test('the scaffolder installs with a package manager, never the runner', () => {
 		// `npx install --save-dev deepeval vitest` fails with "could not determine
-		// executable to run", so the installer must not reuse deval.deepevalCommand.
+		// executable to run", so the installer must not reuse deval.devalCommand.
 		assert.deepStrictEqual(getInstallInvocation('npm'), {
 			command: 'npm',
 			args: ['install', '--save-dev', 'deepeval', 'vitest'],

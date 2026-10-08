@@ -19,7 +19,7 @@ export const DEVAL_AGENT_SYSTEM_PROMPT =
 /**
  * Run the `@deval` agent: an agentic loop over the chat model with tools.
  *
- * Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl`
+ * Every run is captured to `.deval/vscode-agent-events/<session-id>.jsonl`
  * in the workspace's own capture format, so `Deval: Evaluate Captured
  * Agent Run` can score the agent's trajectory without any extra wiring.
  */

@@ -5,7 +5,7 @@ A VS Code extension with its own benchmarkable coding agent. Chat with `@deval` 
 It gives you one thing: **an agent you can measure**.
 
 1. **The `@deval` agent** (`src/agent/`) — a tool-calling loop on `vscode.lm` with read-only workspace tools. No API key needed; the model comes from the Chat model picker.
-2. **Automatic capture** — every run is written to `.deepeval/vscode-agent-events/<session-id>.jsonl`.
+2. **Automatic capture** — every run is written to `.deval/vscode-agent-events/<session-id>.jsonl`.
 3. **Benchmarks** — DeepEval suites that score the loop (scripted model) and score real captured runs (trajectory, tool resolution, policy).
 
 The bundled suites use **deterministic metrics only**, so they run offline with no API key.
@@ -102,7 +102,7 @@ export DEEPEVAL_API_KEY=...
 
 ## Captures
 
-Every `@deval` run is captured automatically — no hooks to install, nothing to enable. The agent loop records prompt, tool-use, tool-result, and stop events to `.deepeval/vscode-agent-events/<session-id>.jsonl`:
+Every `@deval` run is captured automatically — no hooks to install, nothing to enable. The agent loop records prompt, tool-use, tool-result, and stop events to `.deval/vscode-agent-events/<session-id>.jsonl`:
 
 ```json
 {"timestamp":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"deval_readFile","tool_use_id":"call_...","tool_input":{...}}
@@ -121,7 +121,7 @@ The same checks live in `src/events/score-trajectory.ts`, shared with `benchmark
 
 The captured-run suite evaluates the **trajectory** — prompts, tool names, pairing, completion, destructive-tool policy. A tool call that errored appears as a `PostToolUse` whose response carries the error, so interrupted runs stay evaluable.
 
-**Privacy:** captures contain prompts, tool arguments, and tool results, so `.deepeval/` is Git-ignored. Do not commit it.
+**Privacy:** captures contain prompts, tool arguments, and tool results, so `.deval/` is Git-ignored. Do not commit it.
 
 Command 1 (`Deval: Evaluate Captured Agent Run`) offers to run the Deval agent for you when no capture exists yet — you type (or accept) a prompt, the agent runs headlessly with a progress notification, and the run it creates is evaluated straight away.
 
@@ -141,7 +141,7 @@ v1 ships three **read-only** tools, so the agent needs no confirmation UX:
 | `deval_listFiles` | Lists a workspace directory, non-recursive. |
 | `deval_grep` | Searches file contents for a pattern. |
 
-Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl`. That means `Deval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring, and `benchmarks/agent-loop-benchmark.test.ts` measures the loop itself with a scripted model.
+Every run is captured to `.deval/vscode-agent-events/<session-id>.jsonl`. That means `Deval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring, and `benchmarks/agent-loop-benchmark.test.ts` measures the loop itself with a scripted model.
 
 The loop core (`src/agent/loop.ts`) is dependency-free: it takes the model, the tools, and the capture sink as ports, so the same code runs in the extension host (via `src/agent/vscode-adapter.ts`), in unit tests with fakes, and in benchmark suites.
 
@@ -152,7 +152,7 @@ It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent 
 `Deval: Benchmark Chat Model` scores the model behind your VS Code Chat — whatever you have wired up — with a suite that **ships inside the extension**, so it works in any workspace, even one with no test files of its own.
 
 1. It asks `vscode.lm` which chat models are available (letting you pick when there are several) and sends each prompt from `resources/builtin-suites/spec.json` to the model.
-2. The responses are recorded to `.deepeval/model-benchmark/<timestamp>/responses.json`.
+2. The responses are recorded to `.deval/model-benchmark/<timestamp>/responses.json`.
 3. The built-in suite (`resources/builtin-suites/model-benchmark.test.ts`) is staged into the same folder — it resolves `vitest` from the workspace there — and run with `DEEPEVAL_MODEL_RESPONSES` pointing at the responses file. One run, one folder.
 
 Each of the six cases passes when the response contains the required keywords (case-insensitive) and none of the forbidden ones: factual recall, following an exact-output instruction, arithmetic, a small code task, a formatting constraint, and a one-sentence summary. Deterministic, no API key.
@@ -220,8 +220,8 @@ npm test              # extension-host tests (needs a display; use xvfb-run head
 
 ## Settings
 
-- `deval.deepevalCommand`: executable used to launch the DeepEval runner. Defaults to `npx`.
+- `deval.devalCommand`: executable used to launch the DeepEval runner. Defaults to `npx`.
 - `deval.packageManager`: package manager used to install `deepeval` + `vitest` — `npm`, `pnpm`, `yarn`, or `bun`. Defaults to `npm`, and is used only by **Install dependencies** when a run needs it.
 
-These are deliberately separate settings. `deval.deepevalCommand` names the *runner* (`npx deepeval test run …`), so it cannot be reused to install: `npx install --save-dev deepeval vitest` makes npx look for an executable called `install` and fail with `could not determine executable to run`.
+These are deliberately separate settings. `deval.devalCommand` names the *runner* (`npx deepeval test run …`), so it cannot be reused to install: `npx install --save-dev deepeval vitest` makes npx look for an executable called `install` and fail with `could not determine executable to run`.
 

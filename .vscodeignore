@@ -1,6 +1,6 @@
 .vscode/**
 .vscode-test/**
-.deepeval/**
+.deval/**
 out/**
 node_modules/**
 package-lock.json
