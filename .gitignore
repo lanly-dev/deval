@@ -1,5 +1,4 @@
 .deval/
-.deepeval/
 .vscode-test/
 *.vsix
 dist
