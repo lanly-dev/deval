@@ -3,6 +3,7 @@
 // prompt in the built-in spec, records the responses, stages the built-in
 // suite into the workspace, and runs it with the responses fed in.
 import * as vscode from 'vscode';
+import { relative, sep } from 'node:path';
 
 import { ensureDeepEvalReady, executeTaskWithReporting } from './suites';
 import { pickChatModel } from './chat-models';
@@ -143,20 +144,22 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 		return;
 	}
 
-	const command = await ensureDeepEvalReady(workspaceFolder, 'the built-in model benchmark');
-	if (!command) {
+	const ready = await ensureDeepEvalReady(workspaceFolder, 'the built-in model benchmark');
+	if (!ready) {
 		return;
 	}
 
-	const relativeSuitePath = vscode.workspace.asRelativePath(stagedSuiteUri, false);
+	// The suite path is relative to wherever the runner executes: the
+	// workspace root for a workspace install, `.deval/` for a `.deval/` install.
+	const relativeSuitePath = relative(ready.cwd, stagedSuiteUri.fsPath).split(sep).join('/');
 	const label = `Deval: Benchmark ${model.name}`;
 	const task = new vscode.Task(
 		{ type: 'deepeval', benchmark: 'model' },
 		workspaceFolder,
 		label,
 		'Deval',
-		new vscode.ProcessExecution(command, ['deepeval', 'test', 'run', relativeSuitePath], {
-			cwd: workspaceFolder.uri.fsPath,
+		new vscode.ProcessExecution(ready.command, ['deepeval', 'test', 'run', relativeSuitePath], {
+			cwd: ready.cwd,
 			env: { [MODEL_BENCHMARK_ENV]: responsesUri.fsPath },
 		}),
 	);
