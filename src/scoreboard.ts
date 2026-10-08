@@ -52,7 +52,10 @@ function renderTable(title: string, runs: ScoreRecord[]): string {
 	const headerCells = runs
 		.map((run) => {
 			const passed = run.checks.filter((check) => check.passed).length;
-			return `<th><div class="run-label">${escapeHtml(run.label)}</div><div class="run-meta">${escapeHtml(formatTimestamp(run.timestamp))} · ${passed}/${run.checks.length}</div></th>`;
+			const meta = [run.model, formatTimestamp(run.timestamp), `${passed}/${run.checks.length}`]
+				.filter((part): part is string => typeof part === 'string' && part.length > 0)
+				.join(' · ');
+			return `<th><div class="run-label">${escapeHtml(run.label)}</div><div class="run-meta">${escapeHtml(meta)}</div></th>`;
 		})
 		.join('');
 	const bodyRows = labels

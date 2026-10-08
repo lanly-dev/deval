@@ -49,6 +49,8 @@ export interface AgentEvent {
 	tool_use_id?: string;
 	tool_response?: unknown;
 	stop_hook_active?: boolean;
+	/** Chat model behind the run, recorded on `SessionStart` by the `@deval` agent. */
+	model?: string;
 }
 
 /** A parsed capture: the events plus a note of any lines that were unusable. */
@@ -74,6 +76,8 @@ export interface CapturedRunSummary {
 	sessionId?: string;
 	transcriptPath?: string;
 	workingDirectory?: string;
+	/** Chat model behind the run, when the capture recorded one. */
+	model?: string;
 	/** Prompts the user submitted, in order. */
 	prompts: string[];
 	/** Tool invocations, in order. */
@@ -139,6 +143,7 @@ export function parseEventLog(text: string): ParsedEventLog {
 			tool_use_id: asOptionalString(parsed.tool_use_id),
 			tool_response: parsed.tool_response,
 			stop_hook_active: typeof parsed.stop_hook_active === 'boolean' ? parsed.stop_hook_active : undefined,
+			model: asOptionalString(parsed.model),
 		});
 	}
 
@@ -173,6 +178,7 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 	let sessionId: string | undefined;
 	let transcriptPath: string | undefined;
 	let workingDirectory: string | undefined;
+	let model: string | undefined;
 	let startedAt: string | undefined;
 	let endedAt: string | undefined;
 	let stopCount = 0;
@@ -181,6 +187,7 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 		sessionId ??= event.session_id;
 		transcriptPath ??= event.transcript_path;
 		workingDirectory ??= event.cwd;
+		model ??= event.model;
 		if (event.timestamp) {
 			startedAt ??= event.timestamp;
 			endedAt = event.timestamp;
@@ -255,6 +262,7 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 		sessionId,
 		transcriptPath,
 		workingDirectory,
+		model,
 		prompts,
 		toolInvocations,
 		toolsUsed,

@@ -34,6 +34,7 @@ export async function registerChatParticipant(context: vscode.ExtensionContext) 
 			}
 
 			const writer = createCaptureWriter(folders[0].uri.fsPath);
+			writer.append({ hook_event_name: 'SessionStart', model: request.model.name });
 			const events: EventPort = {
 				record: (event) => writer.append(event),
 			};
@@ -84,6 +85,7 @@ export async function runDevalAgentHeadless(
 	}
 
 	const writer = createCaptureWriter(workspaceFolder.uri.fsPath);
+	writer.append({ hook_event_name: 'SessionStart', model: model.name });
 	const events: EventPort = {
 		record: (event) => writer.append(event),
 	};

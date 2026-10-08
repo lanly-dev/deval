@@ -97,6 +97,23 @@ suite('Captured run event log', () => {
 		assert.strictEqual(summary.eventCount, 7);
 	});
 
+	test('surfaces the model recorded on SessionStart', () => {
+		const { events } = parseEventLog(
+			jsonl(
+				{ timestamp: TS, session_id: 's1', hook_event_name: 'SessionStart', model: 'GPT-5' },
+				{ timestamp: TS, hook_event_name: 'UserPromptSubmit', prompt: 'hello' },
+				{ timestamp: TS, hook_event_name: 'Stop' },
+			),
+		);
+		const summary = summarizeEventLog(events);
+		assert.strictEqual(summary.model, 'GPT-5');
+	});
+
+	test('model is undefined when the capture recorded none', () => {
+		const { events } = parseEventLog(jsonl({ timestamp: TS, hook_event_name: 'Stop' }));
+		assert.strictEqual(summarizeEventLog(events).model, undefined);
+	});
+
 	test('pairs tool events that omit a tool_use_id, in order', () => {
 		const { events } = parseEventLog(
 			jsonl(

@@ -48,6 +48,12 @@ suite('scores', () => {
 		});
 	});
 
+	test('round-trips the model field', async () => {
+		await appendScore(dir, sampleRecord({ model: 'GPT-5' }));
+		const [record] = await readScores(dir);
+		assert.strictEqual(record.model, 'GPT-5');
+	});
+
 	test('returns an empty list when no history exists', async () => {
 		assert.deepStrictEqual(await readScores(dir), []);
 	});
