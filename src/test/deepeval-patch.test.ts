@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { SHADOWED_FILE_SUFFIX, SHADOWING_DEEPEVAL_FILES, hasDeepEvalInstall, patchDeepEvalInstall } from '../deepeval-patch';
+import { SHADOWED_FILE_SUFFIX, SHADOWING_DEEPEVAL_FILES, hasDeepEvalInstall, hasVitestInstall, patchDeepEvalInstall } from '../deepeval-patch';
 
 suite('deepeval patch', () => {
 	const createdRoots: string[] = [];
@@ -112,5 +112,16 @@ suite('deepeval patch', () => {
 		// The script doubles as a manual repair for installs the extension cannot
 		// reach, such as npx's cache, so it must accept an explicit target.
 		assert.ok(script.includes('process.argv[2]'), 'the script must accept an explicit install to repair');
+	});
+
+	test('hasVitestInstall requires node_modules/vitest/package.json', () => {
+		const projectRoot = mkdtempSync(join(tmpdir(), 'deval-vitest-'));
+		createdRoots.push(projectRoot);
+
+		assert.strictEqual(hasVitestInstall(projectRoot), false);
+		mkdirSync(join(projectRoot, 'node_modules', 'vitest'), { recursive: true });
+		assert.strictEqual(hasVitestInstall(projectRoot), false);
+		writeFileSync(join(projectRoot, 'node_modules', 'vitest', 'package.json'), '{}');
+		assert.strictEqual(hasVitestInstall(projectRoot), true);
 	});
 });

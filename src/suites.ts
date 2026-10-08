@@ -3,7 +3,7 @@
 // plus the shared DeepEval dependency-install flow the model benchmark uses.
 import * as vscode from 'vscode';
 
-import { hasDeepEvalInstall, patchDeepEvalInstall } from './deepeval-patch';
+import { hasDeepEvalInstall, hasVitestInstall, patchDeepEvalInstall } from './deepeval-patch';
 import { loadCapturedRun } from './events/event-log';
 import { scoreCapturedTrajectory, type TrajectoryCheck } from './events/score-trajectory';
 import { appendScore } from './scores';
@@ -189,18 +189,21 @@ export async function ensureDeepEvalReady(
 	const devalDir = devalDirectoryUri(workspaceFolder);
 
 	// "Install dependencies" puts DeepEval into .deval/, so an install there
-	// satisfies npx just like one in the workspace root.
-	const needsInstall =
-		requiresLocalDeepEvalInstall(command, workspaceRoot) && requiresLocalDeepEvalInstall(command, devalDir.fsPath);
+	// satisfies npx just like one in the workspace root. A runnable install
+	// has both deepeval and vitest: the suite cannot run on deepeval alone,
+	// and such a run would fail without ever writing results.
+	const hasRunnableInstall = (root: string): boolean => hasDeepEvalInstall(root) && hasVitestInstall(root);
+	const installRoot = hasRunnableInstall(workspaceRoot)
+		? workspaceRoot
+		: hasRunnableInstall(devalDir.fsPath)
+			? devalDir.fsPath
+			: undefined;
+	const needsInstall = isNpxCommand(command) && !installRoot;
 	if (!needsInstall) {
 		// Prefer the workspace's own install; otherwise run from the .deval/
 		// install. (When the runner isn't npx at all, keep the old behavior
 		// and run from the workspace root.)
-		const root = hasDeepEvalInstall(workspaceRoot)
-			? workspaceRoot
-			: hasDeepEvalInstall(devalDir.fsPath)
-				? devalDir.fsPath
-				: workspaceRoot;
+		const root = installRoot ?? workspaceRoot;
 		applyDeepEvalPatch(root);
 		return { command, cwd: root };
 	}
