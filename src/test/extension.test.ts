@@ -15,7 +15,7 @@ import {
 	getInstallInvocation,
 	mergeUniqueUris,
 	requiresLocalDeepEvalInstall,
-} from '../extension';
+} from '../suites';
 import { DEEPEVAL_VSCODE_EVENTS } from '../events/event-log';
 
 suite('Extension Test Suite', () => {

@@ -147,7 +147,9 @@ src/
   deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
   events/event-log.ts            # JSONL capture parser + trajectory summarizer
   events/event-writer.ts         # writes captures in the format event-log.ts reads
-  extension.ts                   # commands, chat participant, task runner
+  agent/participant.ts             # the @deval chat participant: wires the loop to vscode.lm
+  suites.ts                      # the run commands, suite discovery, capture picker, install flow
+  extension.ts                   # thin entry point: registers commands and the participant
   test/                          # extension-host tests (Mocha, via `npm test`)
 benchmarks/
   captured-run-benchmark.test.ts # evaluates a captured @deval run
