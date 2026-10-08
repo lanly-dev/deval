@@ -3,7 +3,7 @@
 // prompt in the built-in spec, records the responses, stages the built-in
 // suite into the workspace, and runs it with the responses fed in.
 import * as vscode from 'vscode';
-import { readFile } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 
 import { ensureDeepEvalReady, devalDirectoryUri, executeTaskWithReporting } from './suites';
@@ -166,11 +166,19 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 		}),
 	);
 	task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
-	const succeeded = await executeTaskWithReporting(task, label);
-	if (succeeded) {
-		// Record the score so the scoreboard (command 3) can compare models side by side.
-		await recordBenchmarkScore(workspaceFolder, ready.cwd, runDirectory, model.name);
+	// Delete any stale results file first, so the file we read afterwards can
+	// only come from this run.
+	const latestRunFile = join(ready.cwd, '.deepeval', '.latest_test_run.json');
+	try {
+		await unlink(latestRunFile);
+	} catch {
+		// Ignore: the file simply wasn't there.
 	}
+	await executeTaskWithReporting(task, label);
+	// Record the score even when the benchmark failed: a failing run is still
+	// a score worth comparing. There is simply no record when the run never
+	// produced a results file.
+	await recordBenchmarkScore(workspaceFolder, latestRunFile, runDirectory, model.name);
 }
 
 /**
@@ -180,11 +188,11 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
  */
 async function recordBenchmarkScore(
 	workspaceFolder: vscode.WorkspaceFolder,
-	runCwd: string,
+	latestRunFile: string,
 	runDirectory: vscode.Uri,
 	modelName: string,
 ): Promise<void> {
-	const checks = await readBenchmarkChecks(runCwd, vscode.Uri.joinPath(runDirectory, 'spec.json'));
+	const checks = await readBenchmarkChecks(latestRunFile, vscode.Uri.joinPath(runDirectory, 'spec.json'));
 	if (!checks) {
 		return;
 	}
@@ -197,10 +205,10 @@ async function recordBenchmarkScore(
 }
 
 /** Parse DeepEval's `.latest_test_run.json` into one check per benchmark case. */
-async function readBenchmarkChecks(runCwd: string, stagedSpecUri: vscode.Uri): Promise<ScoreCheck[] | undefined> {
+async function readBenchmarkChecks(latestRunFile: string, stagedSpecUri: vscode.Uri): Promise<ScoreCheck[] | undefined> {
 	let latest: { cases?: Array<{ metricsData?: Array<{ name?: string; success?: boolean; score?: number; reason?: string }> }> };
 	try {
-		latest = JSON.parse(await readFile(join(runCwd, '.deepeval', '.latest_test_run.json'), 'utf8'));
+		latest = JSON.parse(await readFile(latestRunFile, 'utf8'));
 	} catch {
 		return undefined;
 	}
