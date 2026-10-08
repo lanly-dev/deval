@@ -139,16 +139,14 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 	}
 
 	// The suite resolves `vitest` from the workspace, so stage the built-in
-	// files there (under git-ignored `.deepeval/`) instead of running them
-	// from the extension's install directory.
+	// files there instead of running them from the extension's install
+	// directory. Everything for one run lives in a single timestamped folder.
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-	const benchmarkDirectory = vscode.Uri.joinPath(workspaceFolder.uri, '.deepeval', 'model-benchmark');
-	const suiteDirectory = vscode.Uri.joinPath(workspaceFolder.uri, '.deepeval', 'builtin-suites');
-	const responsesUri = vscode.Uri.joinPath(benchmarkDirectory, `${timestamp}.json`);
-	const stagedSuiteUri = vscode.Uri.joinPath(suiteDirectory, 'model-benchmark.test.ts');
+	const runDirectory = vscode.Uri.joinPath(workspaceFolder.uri, '.deepeval', 'model-benchmark', timestamp);
+	const responsesUri = vscode.Uri.joinPath(runDirectory, 'responses.json');
+	const stagedSuiteUri = vscode.Uri.joinPath(runDirectory, 'model-benchmark.test.ts');
 	try {
-		await vscode.workspace.fs.createDirectory(benchmarkDirectory);
-		await vscode.workspace.fs.createDirectory(suiteDirectory);
+		await vscode.workspace.fs.createDirectory(runDirectory);
 		await vscode.workspace.fs.writeFile(
 			responsesUri,
 			Buffer.from(JSON.stringify({ model: model.name, created: timestamp, responses }, null, 2), 'utf8'),
@@ -156,7 +154,7 @@ export async function runModelBenchmark(context: vscode.ExtensionContext): Promi
 		for (const name of ['model-benchmark.test.ts', 'spec.json']) {
 			await vscode.workspace.fs.copy(
 				vscode.Uri.joinPath(context.extensionUri, 'resources', 'builtin-suites', name),
-				vscode.Uri.joinPath(suiteDirectory, name),
+				vscode.Uri.joinPath(runDirectory, name),
 				{ overwrite: true },
 			);
 		}
