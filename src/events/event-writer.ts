@@ -5,11 +5,9 @@
  * `vscode` nor `deepeval`, so the same writer can be used inside the extension
  * host and in a plain Node process.
  *
- * The hook script (`.github/hooks/deval-hook.cjs`) writes captures for the
- * Local harness; this writer produces the same record shape for runs the
- * extension itself drives — currently the `@deval` agent loop in
- * `src/agent/loop.ts`. Either way, `loadCapturedRun()` and the captured-run
- * benchmark consume the file unchanged.
+ * The writer produces the record shape `loadCapturedRun()` consumes for runs
+ * the extension itself drives — currently the `@deval` agent loop in
+ * `src/agent/loop.ts`.
  */
 
 import { appendFileSync, mkdirSync } from 'node:fs';
@@ -43,9 +41,9 @@ export function sanitizeSessionId(sessionId: string): string {
  *
  * The file is `<workspaceDir>/.deepeval/vscode-agent-events/<sessionId>.jsonl`
  * — the same directory `CAPTURED_RUN_DIRECTORY` points at, so
- * `DeepEval: Evaluate Captured Agent Run` offers agent-loop runs without
+ * `Deval: Evaluate Captured Agent Run` offers agent-loop runs without
  * any extra wiring. The directory is created on open; each `append` adds one
- * JSON object per line, with mode `0o600` like the hook script.
+ * JSON object per line, with mode `0o600`.
  */
 export function createCaptureWriter(workspaceDir: string, sessionId: string = randomUUID()): CaptureWriter {
 	const safeId = sanitizeSessionId(sessionId);

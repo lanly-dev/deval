@@ -8,7 +8,7 @@
  *
  * Run it with:
  *   npm run benchmark
- * or, from the Command Palette, `DeepEval: Run Test Suite`.
+ * or, from the Command Palette, `Deval: Run Test Suite`.
  */
 
 import { expect, it } from 'vitest';

@@ -2,7 +2,7 @@
  * Built-in benchmark: score responses from the chat model wired to VS Code.
  *
  * This suite ships inside the extension (`resources/builtin-suites/`). The
- * `DeepEval: Benchmark Chat Model` command queries the user's selected chat
+ * `Deval: Benchmark Chat Model` command queries the user's selected chat
  * model for every case in `spec.json`, writes the responses to a JSON file,
  * stages this suite next to it, and runs it with `DEEPEVAL_MODEL_RESPONSES`
  * pointing at the responses file.
@@ -58,7 +58,7 @@ function loadResponses(): Map<string, string> | undefined {
 describe('built-in chat model benchmark', () => {
 	const responses = loadResponses();
 	if (!responses) {
-		it.skip(`set ${ENV_VAR} to a model-responses JSON file (run "DeepEval: Benchmark Chat Model")`, () => {});
+		it.skip(`set ${ENV_VAR} to a model-responses JSON file (run "Deval: Benchmark Chat Model")`, () => {});
 		return;
 	}
 

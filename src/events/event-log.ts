@@ -279,7 +279,7 @@ export function loadCapturedRun(filePath: string): { parsed: ParsedEventLog; sum
  *
  * Returns `undefined` when the variable is unset, which is the normal case when
  * a suite is launched directly through `npx deepeval test run` rather than
- * through the `DeepEval: Evaluate Captured Agent Run` command.
+ * through the `Deval: Evaluate Captured Agent Run` command.
  */
 export function resolveCapturedRunPath(env: NodeJS.ProcessEnv = process.env): string | undefined {
 	const value = env[DEEPEVAL_VSCODE_EVENTS];

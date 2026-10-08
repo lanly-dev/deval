@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 
 import { createCaptureWriter } from '../events/event-writer';
+import { pickChatModel } from '../chat-models';
 import { runAgentLoop, type EventPort } from './loop';
 import { DEVAL_TOOL_SCHEMAS } from './tool-schemas';
 import { registerDevalTools } from './tools';
@@ -19,7 +20,7 @@ export const DEVAL_AGENT_SYSTEM_PROMPT =
  * Run the `@deval` agent: an agentic loop over the chat model with tools.
  *
  * Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl`
- * in the workspace's own capture format, so `DeepEval: Evaluate Captured
+ * in the workspace's own capture format, so `Deval: Evaluate Captured
  * Agent Run` can score the agent's trajectory without any extra wiring.
  */
 export async function registerChatParticipant(context: vscode.ExtensionContext) {
@@ -63,4 +64,51 @@ export async function registerChatParticipant(context: vscode.ExtensionContext) 
 	);
 
 	context.subscriptions.push(participant, registerDevalTools());
+}
+
+/**
+ * Run the `@deval` agent loop outside the Chat view — same loop, tools, and
+ * capture, but driven by a command with a progress notification instead of a
+ * chat response stream.
+ *
+ * Resolves to the capture file's `vscode.Uri` once the run completes, or
+ * `undefined` when the user cancelled, picked no model, or the loop failed.
+ */
+export async function runDevalAgentHeadless(
+	workspaceFolder: vscode.WorkspaceFolder,
+	prompt: string,
+): Promise<vscode.Uri | undefined> {
+	const model = await pickChatModel();
+	if (!model) {
+		return undefined;
+	}
+
+	const writer = createCaptureWriter(workspaceFolder.uri.fsPath);
+	const events: EventPort = {
+		record: (event) => writer.append(event),
+	};
+
+	return vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: 'Deval agent is working…',
+			cancellable: true,
+		},
+		async (_progress, token) => {
+			const modelPort = createVscodeModelPort(model, token, () => {});
+			const toolPort = createVscodeToolPort(token, undefined);
+			try {
+				await runAgentLoop(
+					prompt,
+					{ model: modelPort, tools: toolPort, events },
+					{ toolSchemas: DEVAL_TOOL_SCHEMAS, systemPrompt: DEVAL_AGENT_SYSTEM_PROMPT },
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				void vscode.window.showErrorMessage(`The agent loop failed: ${message}`);
+				return undefined;
+			}
+			return vscode.Uri.file(writer.filePath);
+		},
+	);
 }
