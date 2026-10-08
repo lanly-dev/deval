@@ -1,6 +1,12 @@
 # Deval
 
 A VS Code extension with its own benchmarkable coding agent. Chat with `@deval` and it runs a real tool-calling loop against your Chat model; every run is captured, and DeepEval TypeScript suites score the runs — trajectory and tool use — with deterministic metrics.
+<a href="https://marketplace.visualstudio.com/items?itemName=	lanly-dev.deval" target="_blank">
+  <img src='https://code.visualstudio.com/favicon.ico' width='10'/>
+</a>
+<a href="https://open-vsx.org/extension/lanly-dev/deval" target="_blank">
+  <img src='https://open-vsx.org/favicon.ico' width='10'/>
+</a>
 
 It gives you one thing: **an agent you can measure**.
 

@@ -18,6 +18,7 @@
         "inspectable",
         "lanly",
         "LOCALAPPDATA",
+        "sandboxed",
         "unpatchable"
     ]
 }
