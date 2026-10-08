@@ -11,12 +11,21 @@
  * required keywords (case-insensitive) and none of the forbidden ones — so no
  * API key is needed.
  *
+ * The assertions go through DeepEval's `toPass` matcher (not plain vitest
+ * assertions) so that `deepeval test run` persists each case and writes its
+ * `.latest_test_run.json` results file, which the extension reads back for
+ * the scoreboard.
+ *
  * Run it from the Command Palette. Running it directly without
  * `DEEPEVAL_MODEL_RESPONSES` skips every case.
  */
 
+import 'deepeval/vitest';
+
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { BaseMetric, checkSingleTurnParams } from 'deepeval/metrics';
+import { LLMTestCase, SingleTurnParams } from 'deepeval/test-case';
 
 const ENV_VAR = 'DEEPEVAL_MODEL_RESPONSES';
 
@@ -30,6 +39,53 @@ interface BenchmarkCase {
 interface ModelResponse {
 	id: string;
 	response: string;
+}
+
+/**
+ * Deterministic DeepEval metric: every required keyword is present in the
+ * output (case-insensitive) and no forbidden keyword appears.
+ */
+class KeywordMetric extends BaseMetric {
+	required: string[];
+	forbidden: string[];
+
+	constructor(required: string[], forbidden: string[] = []) {
+		super(1);
+		this.required = required;
+		this.forbidden = forbidden;
+		this.requiredParams = [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT];
+	}
+
+	async measure(testCase: LLMTestCase): Promise<number> {
+		checkSingleTurnParams(testCase, this.requiredParams, this);
+
+		const text = (testCase.actualOutput ?? '').toLowerCase();
+		const missing = this.required.filter((keyword) => !text.includes(keyword.toLowerCase()));
+		const hitForbidden = this.forbidden.filter((keyword) => text.includes(keyword.toLowerCase()));
+
+		const total = this.required.length + this.forbidden.length;
+		const failed = missing.length + hitForbidden.length;
+		this.score = total === 0 ? 1 : (total - failed) / total;
+
+		const problems: string[] = [];
+		if (missing.length > 0) {
+			problems.push(`missing ${missing.map((keyword) => `"${keyword}"`).join(', ')}`);
+		}
+		if (hitForbidden.length > 0) {
+			problems.push(`contained forbidden ${hitForbidden.map((keyword) => `"${keyword}"`).join(', ')}`);
+		}
+		this.reason =
+			problems.length === 0
+				? `The output contains all ${this.required.length} required keyword(s).`
+				: `The output ${problems.join(' and ')}.`;
+
+		this.success = this.isSuccessful();
+		return this.score;
+	}
+
+	get name(): string {
+		return 'Keyword Check';
+	}
 }
 
 function loadCases(): BenchmarkCase[] {
@@ -63,15 +119,16 @@ describe('built-in chat model benchmark', () => {
 	}
 
 	for (const testCase of loadCases()) {
-		it(`model: ${testCase.id}`, () => {
+		it(`model: ${testCase.id}`, async () => {
 			const response = responses.get(testCase.id);
-			expect(response, `no response recorded for case "${testCase.id}"`).toBeDefined();
-			const text = (response ?? '').toLowerCase();
-			const missing = testCase.required.filter((keyword) => !text.includes(keyword.toLowerCase()));
-			expect(missing, `missing keywords: ${missing.join(', ')}`).toEqual([]);
-			for (const keyword of testCase.forbidden ?? []) {
-				expect(text.includes(keyword.toLowerCase()), `forbidden keyword present: ${keyword}`).toBe(false);
+			if (response === undefined) {
+				throw new Error(`no response recorded for case "${testCase.id}"`);
 			}
+			const llmTestCase = new LLMTestCase({
+				input: testCase.prompt,
+				actualOutput: response,
+			});
+			await expect(llmTestCase).toPass([new KeywordMetric(testCase.required, testCase.forbidden ?? [])]);
 		});
 	}
 });
