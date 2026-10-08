@@ -13,6 +13,7 @@ function makeSummary(overrides: Partial<Summary> = {}): Summary {
 		],
 		toolsUsed: ['deval_listFiles', 'deval_readFile'],
 		completed: true,
+		finalText: 'The workspace contains src/index.ts, src/agent/loop.ts and README.md.',
 		eventCount: 8,
 		stopCount: 1,
 		...overrides,
@@ -28,7 +29,7 @@ suite('scoreCapturedTrajectory', () => {
 	test('a healthy trajectory passes every check', () => {
 		const results = checkIds(makeSummary());
 		assert.deepStrictEqual(Object.values(results).every(Boolean), true);
-		assert.strictEqual(Object.keys(results).length, 8);
+		assert.strictEqual(Object.keys(results).length, 11);
 	});
 
 	test('unparseable lines fail the JSON check', () => {
@@ -90,5 +91,75 @@ suite('scoreCapturedTrajectory', () => {
 		for (const check of scoreCapturedTrajectory({ summary: makeSummary(), skippedLines: [] })) {
 			assert.ok(check.detail.length > 0, `${check.id} has no detail`);
 		}
+	});
+
+	test('an identical retry after a tool error fails the flailing check', () => {
+		const results = checkIds(
+			makeSummary({
+				toolInvocations: [
+					{
+						toolName: 'deval_readFile',
+						toolUseId: 'call_1',
+						input: { path: 'missing.ts' },
+						output: { error: 'no such file' },
+						finishedAt: '2026-10-08T00:00:01Z',
+					},
+					{
+						toolName: 'deval_readFile',
+						toolUseId: 'call_2',
+						input: { path: 'missing.ts' },
+						output: { error: 'no such file' },
+						finishedAt: '2026-10-08T00:00:02Z',
+					},
+				],
+			}),
+		);
+		assert.strictEqual(results['no-repeated-failures'], false);
+	});
+
+	test('adapting after a tool error passes the flailing check', () => {
+		const results = checkIds(
+			makeSummary({
+				toolInvocations: [
+					{
+						toolName: 'deval_readFile',
+						toolUseId: 'call_1',
+						input: { path: 'missing.ts' },
+						output: { error: 'no such file' },
+						finishedAt: '2026-10-08T00:00:01Z',
+					},
+					{
+						toolName: 'deval_readFile',
+						toolUseId: 'call_2',
+						input: { path: 'src/index.ts' },
+						output: 'file contents',
+						finishedAt: '2026-10-08T00:00:02Z',
+					},
+				],
+			}),
+		);
+		assert.strictEqual(results['no-repeated-failures'], true);
+	});
+
+	test('a finished run with a vacuous final answer fails substantive termination', () => {
+		const results = checkIds(makeSummary({ finalText: 'done' }));
+		assert.strictEqual(results['completed'], true);
+		assert.strictEqual(results['substantive-stop'], false);
+	});
+
+	test('an unfinished run does not fail substantive termination twice', () => {
+		const results = checkIds(makeSummary({ completed: false, stopCount: 0, finalText: undefined }));
+		assert.strictEqual(results['completed'], false);
+		assert.strictEqual(results['substantive-stop'], true);
+	});
+
+	test('too many tool calls fail the budget check', () => {
+		const toolInvocations = Array.from({ length: 26 }, (_, index) => ({
+			toolName: 'deval_readFile',
+			toolUseId: `call_${index}`,
+			finishedAt: '2026-10-08T00:00:01Z',
+		}));
+		const results = checkIds(makeSummary({ toolInvocations }));
+		assert.strictEqual(results['tool-budget'], false);
 	});
 });

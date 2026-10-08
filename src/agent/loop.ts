@@ -160,7 +160,7 @@ export async function runAgentLoop(
 	}
 
 	if (finished) {
-		ports.events.record({ hook_event_name: 'Stop' });
+		ports.events.record({ hook_event_name: 'Stop', final_text: outputParts.join('') });
 	} else {
 		outputParts.push(`\n\n${LOOP_CUTOFF_MESSAGE}`);
 	}

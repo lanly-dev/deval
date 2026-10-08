@@ -51,6 +51,11 @@ export interface AgentEvent {
 	stop_hook_active?: boolean;
 	/** Chat model behind the run, recorded on `SessionStart` by the `@deval` agent. */
 	model?: string;
+	/**
+	 * Final answer text, recorded on `Stop` by the `@deval` agent. Lets the
+	 * trajectory scorer tell a substantive finish from an abrupt one.
+	 */
+	final_text?: string;
 }
 
 /** A parsed capture: the events plus a note of any lines that were unusable. */
@@ -89,6 +94,8 @@ export interface CapturedRunSummary {
 	durationMs?: number;
 	/** True when the capture contains a `Stop` event, i.e. the run finished. */
 	completed: boolean;
+	/** Final answer text from the `Stop` event, when the capture recorded one. */
+	finalText?: string;
 	eventCount: number;
 	stopCount: number;
 }
@@ -179,6 +186,7 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 	let transcriptPath: string | undefined;
 	let workingDirectory: string | undefined;
 	let model: string | undefined;
+	let finalText: string | undefined;
 	let startedAt: string | undefined;
 	let endedAt: string | undefined;
 	let stopCount = 0;
@@ -244,6 +252,10 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 			}
 			case 'Stop': {
 				stopCount += 1;
+				// Last one wins: the final text belongs to the run's end.
+				if (typeof event.final_text === 'string') {
+					finalText = event.final_text;
+				}
 				break;
 			}
 			default:
@@ -270,6 +282,7 @@ export function summarizeEventLog(events: AgentEvent[]): CapturedRunSummary {
 		endedAt,
 		durationMs: elapsedMs(startedAt, endedAt),
 		completed: stopCount > 0,
+		finalText,
 		eventCount: events.length,
 		stopCount,
 	};
