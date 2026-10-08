@@ -173,9 +173,9 @@ export function devalDirectoryUri(workspaceFolder: vscode.WorkspaceFolder): vsco
 
 /**
  * Make sure DeepEval can run for `workspaceFolder`: reuse the workspace's own
- * install when there is one, otherwise offer to install into the workspace's
- * `.deval/` directory — never into the workspace root — and repair the
- * known-broken CLI there.
+ * install when there is one, otherwise reuse (or offer to create) the
+ * extension-managed install in the workspace's `.deval/` directory — never
+ * the workspace root — and repair the known-broken CLI there.
  *
  * Resolves to the runner command plus the directory to run it from, or
  * `undefined` when the user declined the install.
@@ -185,17 +185,29 @@ export async function ensureDeepEvalReady(
 	reason: string,
 ): Promise<{ command: string; cwd: string } | undefined> {
 	const command = vscode.workspace.getConfiguration('deval').get<string>('deepevalCommand', 'npx');
-	if (!requiresLocalDeepEvalInstall(command, workspaceFolder.uri.fsPath)) {
-		// The workspace has its own install (or the runner is not npx):
-		// patch it and run from the workspace root, as before.
-		applyDeepEvalPatch(workspaceFolder.uri.fsPath);
-		return { command, cwd: workspaceFolder.uri.fsPath };
+	const workspaceRoot = workspaceFolder.uri.fsPath;
+	const devalDir = devalDirectoryUri(workspaceFolder);
+
+	// "Install dependencies" puts DeepEval into .deval/, so an install there
+	// satisfies npx just like one in the workspace root.
+	const needsInstall =
+		requiresLocalDeepEvalInstall(command, workspaceRoot) && requiresLocalDeepEvalInstall(command, devalDir.fsPath);
+	if (!needsInstall) {
+		// Prefer the workspace's own install; otherwise run from the .deval/
+		// install. (When the runner isn't npx at all, keep the old behavior
+		// and run from the workspace root.)
+		const root = hasDeepEvalInstall(workspaceRoot)
+			? workspaceRoot
+			: hasDeepEvalInstall(devalDir.fsPath)
+				? devalDir.fsPath
+				: workspaceRoot;
+		applyDeepEvalPatch(root);
+		return { command, cwd: root };
 	}
 
 	// npx would download DeepEval into npm's cache: unpinned, outside the
 	// workspace, and unusable here because the suite also needs Vitest.
 	// Install into `.deval/` instead, so the user's project stays untouched.
-	const devalDir = devalDirectoryUri(workspaceFolder);
 	const install = 'Install dependencies';
 	const choice = await vscode.window.showWarningMessage(
 		`DeepEval is not installed in "${workspaceFolder.name}", so npx would download a copy that cannot run ${reason}. Install it into the workspace's .deval/ folder?`,
