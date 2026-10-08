@@ -190,9 +190,16 @@ If the stack points at `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\deepev
 node scripts/patch-deepeval.mjs "%LOCALAPPDATA%\npm-cache\_npx\<hash>"
 ```
 
-## CI
+## Verification
 
-`.github/workflows/ci.yml` type-checks, lints, bundles, runs the DeepEval suites, and runs the extension-host tests under `xvfb`. The deterministic suites mean no secrets are needed.
+Run the checks locally — no CI, no secrets needed (the suites are deterministic):
+
+```sh
+npm run check-types   # type-check the extension and the benchmarks
+npm run lint          # ESLint over src, benchmarks, and the Vitest config
+npm run benchmark     # run the DeepEval suites
+npm test              # extension-host tests (needs a display; use xvfb-run headless)
+```
 
 ## Settings
 
