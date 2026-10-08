@@ -109,7 +109,7 @@ Every `@deval` run is captured automatically — no hooks to install, nothing to
 {"timestamp":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"deval_readFile","tool_use_id":"call_...","tool_input":{...}}
 ```
 
-Command 1 (`Deval: Evaluate Captured Agent Run`) scores the trajectory **inside the extension** — no suite files, no installs. It runs eight deterministic checks and reports them in a notification, with per-check details on demand:
+Command 1 (`Deval: Evaluate Captured Agent Run`) scores the trajectory **inside the extension** — no suite files, no installs. It runs eleven deterministic checks and reports them in a notification, with per-check details on demand:
 
 - the capture holds only valid JSON objects, recorded events, and a session id
 - the run finished (a `Stop` event)
@@ -117,6 +117,9 @@ Command 1 (`Deval: Evaluate Captured Agent Run`) scores the trajectory **inside 
 - no destructive tools were used
 - tool names are well-formed
 - prompts were recorded
+- no tool was retried with identical input after erroring (flailing)
+- the run ended with a substantive final answer, not an abrupt stop
+- tool calls stayed within budget (25)
 
 The same checks live in `src/events/score-trajectory.ts`, shared with `benchmarks/captured-run-benchmark.test.ts`, so the command and `npm run benchmark` can never disagree about what a good trajectory looks like.
 
@@ -156,7 +159,7 @@ It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent 
 2. The responses are recorded to `.deval/model-benchmark/<timestamp>/responses.json`.
 3. The built-in suite (`resources/builtin-suites/model-benchmark.test.ts`) is staged into the same folder — it resolves `vitest` from the workspace there — and run with `DEEPEVAL_MODEL_RESPONSES` pointing at the responses file. One run, one folder.
 
-Each of the six cases passes when the response contains the required keywords (case-insensitive) and none of the forbidden ones: factual recall, following an exact-output instruction, arithmetic, a small code task, a formatting constraint, and a one-sentence summary. Deterministic, no API key.
+Eleven cases in two kinds. The six **keyword** cases pass when the response contains the required keywords (case-insensitive) and none of the forbidden ones: factual recall, following an exact-output instruction, arithmetic, a small code task, a formatting constraint, and a one-sentence summary. The five **code** cases ask the model to write a JavaScript function; the suite extracts the code, runs it against hidden test vectors in a sandboxed VM with a timeout, and scores the fraction of vectors that pass — a miniature HumanEval, so execution rather than keyword matching decides. Deterministic, no API key.
 
 This benchmarks the **model only** — prompt in, response out. It does not exercise VS Code's built-in agent harness: extensions can't drive or observe that loop through a stable API, which is why the fully observable `@deval` agent above exists for trajectory benchmarking.
 
