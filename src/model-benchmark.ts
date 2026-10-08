@@ -13,11 +13,19 @@ import { pickChatModel } from './chat-models';
 /** Environment variable the staged suite reads the model responses from. */
 export const MODEL_BENCHMARK_ENV = 'DEEPEVAL_MODEL_RESPONSES';
 
+interface CodeVector {
+	args: unknown[];
+	expected: unknown;
+}
+
 interface BenchmarkCase {
 	id: string;
 	prompt: string;
 	required: string[];
 	forbidden?: string[];
+	kind?: 'keyword' | 'code';
+	function?: string;
+	vectors?: CodeVector[];
 }
 
 interface ModelResponse {
@@ -27,14 +35,30 @@ interface ModelResponse {
 	error?: string;
 }
 
+function isCodeVector(value: unknown): value is CodeVector {
+	const candidate = value as Partial<CodeVector>;
+	return Array.isArray(candidate?.args);
+}
+
 function isBenchmarkCase(value: unknown): value is BenchmarkCase {
 	const candidate = value as Partial<BenchmarkCase>;
-	return (
-		typeof candidate?.id === 'string' &&
-		typeof candidate?.prompt === 'string' &&
-		Array.isArray(candidate?.required) &&
-		candidate.required.every((keyword) => typeof keyword === 'string')
-	);
+	if (
+		typeof candidate?.id !== 'string' ||
+		typeof candidate?.prompt !== 'string' ||
+		!Array.isArray(candidate?.required) ||
+		!candidate.required.every((keyword) => typeof keyword === 'string')
+	) {
+		return false;
+	}
+	if (candidate.kind === 'code') {
+		return (
+			typeof candidate.function === 'string' &&
+			Array.isArray(candidate.vectors) &&
+			candidate.vectors.length > 0 &&
+			candidate.vectors.every(isCodeVector)
+		);
+	}
+	return candidate.kind === undefined || candidate.kind === 'keyword';
 }
 
 async function loadSpec(extensionUri: vscode.Uri): Promise<BenchmarkCase[]> {
