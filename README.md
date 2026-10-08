@@ -142,8 +142,8 @@ It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent 
 `DeepEval: Benchmark Chat Model` scores the model behind your VS Code Chat — whatever you have wired up — with a suite that **ships inside the extension**, so it works in any workspace, even one with no test files of its own.
 
 1. It asks `vscode.lm` which chat models are available (letting you pick when there are several) and sends each prompt from `resources/builtin-suites/spec.json` to the model.
-2. The responses are recorded to `.deepeval/model-benchmark/<timestamp>.json`.
-3. The built-in suite (`resources/builtin-suites/model-benchmark.test.ts`) is staged into `.deepeval/builtin-suites/` — it resolves `vitest` from the workspace there — and run with `DEEPEVAL_MODEL_RESPONSES` pointing at the responses file.
+2. The responses are recorded to `.deepeval/model-benchmark/<timestamp>/responses.json`.
+3. The built-in suite (`resources/builtin-suites/model-benchmark.test.ts`) is staged into the same folder — it resolves `vitest` from the workspace there — and run with `DEEPEVAL_MODEL_RESPONSES` pointing at the responses file. One run, one folder.
 
 Each of the six cases passes when the response contains the required keywords (case-insensitive) and none of the forbidden ones: factual recall, following an exact-output instruction, arithmetic, a small code task, a formatting constraint, and a one-sentence summary. Deterministic, no API key.
 
