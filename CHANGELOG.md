@@ -12,12 +12,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `Deval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring.
 - `benchmarks/agent-loop-benchmark.test.ts` — deterministic suite driving the loop with a scripted model through `observe()`, asserting with `ContainsAllMetric` and `ToolCorrectnessMetric`.
 - Unit tests for the loop core (fake model/tool ports) and the capture writer.
-- `Deval: Benchmark Chat Model` — benchmarks the chat model wired to VS Code (`vscode.lm`) with a built-in suite that ships in `resources/builtin-suites/`: six deterministic cases (recall, exact-output, arithmetic, code, formatting, summary). Each run keeps everything in one folder — `.deepeval/model-benchmark/<timestamp>/` holds the model's answers, the suite, and the spec — and runs with `DEEPEVAL_MODEL_RESPONSES` pointing at the answers. Works in any workspace, no test files needed.
+- `Deval: Benchmark Chat Model` — benchmarks the chat model wired to VS Code (`vscode.lm`) with a built-in suite that ships in `resources/builtin-suites/`: six deterministic cases (recall, exact-output, arithmetic, code, formatting, summary). Each run keeps everything in one folder — `.deval/model-benchmark/<timestamp>/` holds the model's answers, the suite, and the spec — and runs with `DEEPEVAL_MODEL_RESPONSES` pointing at the answers. Works in any workspace, no test files needed.
 
 ### Changed
 
 - Commands are renamed from `DeepEval: …` to `Deval: …` (palette titles, task labels, and docs).
-- `Deval: Evaluate Captured Agent Run` (command 1) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates.
+- `Deval: Evaluate Captured Agent Run` (command 1) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates. It now scores the trajectory **in the extension** via the shared `src/events/score-trajectory.ts` (eight deterministic checks) — no workspace suite files and no DeepEval install needed. `benchmarks/captured-run-benchmark.test.ts` is a thin wrapper over the same scorer for `npm run benchmark`. Removed the suite-discovery code it no longer needs.
 - Commands are numbered 1–2 in the README so they can be referenced by number.
 - Removed `Deval: Run Test Suite` (command 1) — running arbitrary workspace suites is out; the extension's flows are the built-in evaluate and model-benchmark commands. The bundled suites still run via `npm run benchmark`.
 
@@ -55,13 +55,13 @@ First complete starter release.
 - `selectDeepEvalRun` is exported and returns `vscode.Uri | undefined`; the captured-run directory is a named constant.
 - Test discovery now also excludes `.vscode-test`, and the test file patterns are exported as `DEEPEVAL_TEST_PATTERNS`.
 - Task launches set an explicit `cwd` on the spawned process.
-- `.gitignore` ignores all of `.deepeval/` and tracks `package-lock.json` so `npm ci` works in CI.
+- `.gitignore` ignores all of `.deval/` and tracks `package-lock.json` so `npm ci` works in CI.
 
 ### Fixed
 
 - `README.md` referenced `../src/agent-harness`, which did not exist.
 - The sample suite returned a hardcoded string and never invoked an agent, so it could not have evaluated anything.
-- **Install dependencies** on the scaffold notification reused `deval.deepevalCommand` as the installer, so it ran `npx install --save-dev deepeval vitest` and failed with `could not determine executable to run`. It now uses the new `deval.packageManager` setting (`npm install --save-dev …`, or the matching `add` command for pnpm, yarn, and bun).
+- **Install dependencies** on the scaffold notification reused `deval.devalCommand` as the installer, so it ran `npx install --save-dev deepeval vitest` and failed with `could not determine executable to run`. It now uses the new `deval.packageManager` setting (`npm install --save-dev …`, or the matching `add` command for pnpm, yarn, and bun).
 - `README.md` claimed the Local harness emits four hook events; it documents eight. The four extras are now listed as ignored rather than missing.
 - A scaffolded workspace could not actually run anything: the extension told users to install `deepeval@0.9.22`, whose CLI is broken out of the box, and this repository's `postinstall` repair does not apply elsewhere. The extension now repairs the install itself before every run and after **Install dependencies**.
 - Running a suite in a workspace with no local `deepeval` let `npx` fetch one into npm's cache (`…\npm-cache\_npx\<hash>\…`), where it fails with `Cannot find module '@sentry/node'`, cannot be patched by the extension, and cannot resolve the suite's `vitest`. Both run commands now detect the missing workspace install (`requiresLocalDeepEvalInstall`) and offer **Install dependencies** — reusing the same install-and-repair path as the scaffolder — instead of launching a run that cannot succeed. `scripts/patch-deepeval.mjs` additionally accepts an explicit root, so a cached or global copy can be repaired by hand.

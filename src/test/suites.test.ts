@@ -8,17 +8,13 @@ import { join } from 'node:path';
 import * as vscode from 'vscode';
 import {
 	CAPTURED_RUN_DIRECTORY,
-	DEEPEVAL_TEST_EXCLUDES,
 	PACKAGE_MANAGERS,
-	findDeepEvalTestFiles,
-	getDeepEvalTestPatterns,
 	getInstallInvocation,
-	mergeUniqueUris,
 	requiresLocalDeepEvalInstall,
 } from '../suites';
 import { DEEPEVAL_VSCODE_EVENTS } from '../events/event-log';
 
-suite('Extension Test Suite', () => {
+suite('Suites Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
 	test('Sample test', () => {
@@ -26,33 +22,8 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
 	});
 
-	test('DeepEval test discovery includes the supported test patterns', () => {
-		const patterns = getDeepEvalTestPatterns();
-		assert.ok(patterns.includes('**/*.test.ts'));
-		assert.ok(patterns.includes('**/*.spec.ts'));
-		assert.ok(patterns.includes('**/benchmarks/**/*.test.ts'));
-	});
-
-	test('DeepEval test discovery ignores build output directories', () => {
-		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('node_modules'));
-		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('out'));
-		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('.vscode-test'));
-		assert.ok(DEEPEVAL_TEST_EXCLUDES.includes('.deepeval'));
-	});
-
-	test('DeepEval test URIs are de-duped', () => {
-		const a = vscode.Uri.file('/workspace/a.test.ts');
-		const b = vscode.Uri.file('/workspace/src/test/b.test.ts');
-		const c = vscode.Uri.file('/workspace/a.test.ts');
-
-		const unique = mergeUniqueUris([a, b], [c]);
-		assert.strictEqual(unique.length, 2);
-		assert.ok(unique.some((uri) => uri.fsPath.endsWith('a.test.ts')));
-		assert.ok(unique.some((uri) => uri.fsPath.endsWith('b.test.ts')));
-	});
-
 	test('captured runs live under the documented relative directory', () => {
-		assert.deepStrictEqual(CAPTURED_RUN_DIRECTORY, ['.deepeval', 'vscode-agent-events']);
+		assert.deepStrictEqual(CAPTURED_RUN_DIRECTORY, ['.deval', 'vscode-agent-events']);
 	});
 
 	test('the capture environment variable name matches the hook contract', () => {
@@ -61,7 +32,7 @@ suite('Extension Test Suite', () => {
 
 	test('the scaffolder installs with a package manager, never the runner', () => {
 		// `npx install --save-dev deepeval vitest` fails with "could not determine
-		// executable to run", so the installer must not reuse deval.deepevalCommand.
+		// executable to run", so the installer must not reuse deval.devalCommand.
 		assert.deepStrictEqual(getInstallInvocation('npm'), {
 			command: 'npm',
 			args: ['install', '--save-dev', 'deepeval', 'vitest'],
@@ -121,14 +92,6 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(requiresLocalDeepEvalInstall('npx', projectRoot), false);
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
-		}
-	});
-
-	test('discovery returns only real files', async () => {
-		const files = await findDeepEvalTestFiles();
-		for (const file of files) {
-			assert.strictEqual(file.scheme, 'file');
-			assert.ok(file.fsPath.endsWith('.ts'), `expected a TypeScript file, got ${file.fsPath}`);
 		}
 	});
 });

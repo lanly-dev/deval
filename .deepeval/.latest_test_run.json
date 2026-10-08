@@ -1,0 +1,160 @@
+{
+  "link": null,
+  "savedAt": "2026-10-08T12:26:06.616Z",
+  "runDuration": 1.424,
+  "official": false,
+  "testPassed": 1,
+  "testFailed": 0,
+  "cases": [
+    {
+      "conversational": false,
+      "metricsData": [
+        {
+          "name": "Contains All",
+          "threshold": 1,
+          "success": true,
+          "score": 1,
+          "reason": "The output contains all 2 required fragment(s).",
+          "strictMode": false,
+          "flaky": false,
+          "skipped": false
+        },
+        {
+          "name": "Tool Correctness",
+          "threshold": 1,
+          "success": true,
+          "score": 1,
+          "reason": "[\n\t Tool Calling Reason: All expected tools [\"deval_readFile\"] were called (order not considered).\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+          "strictMode": false,
+          "flaky": false,
+          "evaluationModel": "gpt-5.4",
+          "evaluationCost": 0,
+          "verboseLogs": "Expected Tools:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nTools Called:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"output\": \"Reads the full text contents of a file in the workspace.\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nAvailable Tools:\n[] \n \nTool Selection Score: 1 \n \nTool Selection Reason: No available tools were provided to assess tool selection criteria",
+          "skipped": false
+        }
+      ],
+      "entry": {
+        "name": "test_case_0",
+        "input": "What does the deval_readFile tool do?",
+        "actualOutput": "The deval_readFile tool reads the full text contents of a file in the workspace.",
+        "toolsCalled": [
+          {
+            "name": "deval_readFile",
+            "output": "Reads the full text contents of a file in the workspace.",
+            "inputParameters": {
+              "path": "src/agent/tool-schemas.ts"
+            }
+          }
+        ],
+        "expectedTools": [
+          {
+            "name": "deval_readFile",
+            "inputParameters": {
+              "path": "src/agent/tool-schemas.ts"
+            }
+          }
+        ],
+        "success": true,
+        "flaky": false,
+        "metricsData": [
+          {
+            "name": "Contains All",
+            "threshold": 1,
+            "success": true,
+            "score": 1,
+            "reason": "The output contains all 2 required fragment(s).",
+            "strictMode": false,
+            "flaky": false
+          },
+          {
+            "name": "Tool Correctness",
+            "threshold": 1,
+            "success": true,
+            "score": 1,
+            "reason": "[\n\t Tool Calling Reason: All expected tools [\"deval_readFile\"] were called (order not considered).\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+            "strictMode": false,
+            "flaky": false,
+            "evaluationModel": "gpt-5.4",
+            "evaluationCost": 0,
+            "verboseLogs": "Expected Tools:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nTools Called:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"output\": \"Reads the full text contents of a file in the workspace.\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nAvailable Tools:\n[] \n \nTool Selection Score: 1 \n \nTool Selection Reason: No available tools were provided to assess tool selection criteria"
+          }
+        ],
+        "runDuration": 0,
+        "evaluationCost": 0,
+        "order": 0,
+        "trace": {
+          "uuid": "d3352091-5470-4cef-8eb2-33dfe7d4ca8a",
+          "baseSpans": [],
+          "agentSpans": [
+            {
+              "uuid": "a3d60a4c-0cf7-4ca3-9a6a-5cb6d828fb1c",
+              "name": "deval-agent-loop",
+              "status": "SUCCESS",
+              "type": "agent",
+              "traceUuid": "d3352091-5470-4cef-8eb2-33dfe7d4ca8a",
+              "startTime": "2026-10-08T12:26:05.879Z",
+              "endTime": "2026-10-08T12:26:05.881Z",
+              "input": "What does the deval_readFile tool do?",
+              "output": "The deval_readFile tool reads the full text contents of a file in the workspace.",
+              "toolsCalled": [
+                {
+                  "name": "deval_readFile",
+                  "inputParameters": {
+                    "path": "src/agent/tool-schemas.ts"
+                  },
+                  "output": "Reads the full text contents of a file in the workspace."
+                }
+              ],
+              "availableTools": [],
+              "agentHandoffs": []
+            }
+          ],
+          "llmSpans": [],
+          "retrieverSpans": [],
+          "toolSpans": [],
+          "startTime": "2026-10-08T12:26:05.880Z",
+          "endTime": "2026-10-08T12:26:05.882Z",
+          "environment": "development",
+          "input": "What does the deval_readFile tool do?",
+          "output": "The deval_readFile tool reads the full text contents of a file in the workspace.",
+          "toolsCalled": [
+            {
+              "name": "deval_readFile",
+              "inputParameters": {
+                "path": "src/agent/tool-schemas.ts"
+              },
+              "output": "Reads the full text contents of a file in the workspace."
+            }
+          ],
+          "metricsData": [
+            {
+              "name": "Contains All",
+              "threshold": 1,
+              "success": true,
+              "score": 1,
+              "reason": "The output contains all 2 required fragment(s).",
+              "strictMode": false,
+              "flaky": false,
+              "skipped": false
+            },
+            {
+              "name": "Tool Correctness",
+              "threshold": 1,
+              "success": true,
+              "score": 1,
+              "reason": "[\n\t Tool Calling Reason: All expected tools [\"deval_readFile\"] were called (order not considered).\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+              "strictMode": false,
+              "flaky": false,
+              "evaluationModel": "gpt-5.4",
+              "evaluationCost": 0,
+              "verboseLogs": "Expected Tools:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nTools Called:\n[\n  {\n      \"name\": \"deval_readFile\",\n      \"output\": \"Reads the full text contents of a file in the workspace.\",\n      \"inputParameters\": {\n          \"path\": \"src/agent/tool-schemas.ts\"\n      }\n  }\n] \n \nAvailable Tools:\n[] \n \nTool Selection Score: 1 \n \nTool Selection Reason: No available tools were provided to assess tool selection criteria",
+              "skipped": false
+            }
+          ],
+          "status": "SUCCESS"
+        }
+      }
+    }
+  ],
+  "testRunId": null
+}
