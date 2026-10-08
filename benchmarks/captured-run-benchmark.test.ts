@@ -1,7 +1,7 @@
 /**
- * Benchmark: evaluate a captured VS Code Local-harness run.
+ * Benchmark: evaluate a captured `@deval` agent run.
  *
- * `DeepEval: Evaluate Captured Local Agent Run` picks a JSONL capture and sets
+ * `DeepEval: Evaluate Captured Agent Run` picks a JSONL capture and sets
  * `DEEPEVAL_VSCODE_EVENTS` to its absolute path before starting the suite. This
  * file reads that variable, turns the trajectory into a deterministic digest,
  * and judges the digest with DeepEval metrics.

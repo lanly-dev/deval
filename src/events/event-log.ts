@@ -1,7 +1,8 @@
 /**
- * Reader for the JSONL files written by `.github/hooks/deval-hook.cjs`.
+ * Reader for the JSONL files written by the `@deval` agent loop
+ * (`src/events/event-writer.ts`).
  *
- * Like `agent-harness.ts`, this module is dependency-free so it can be loaded
+ * Like `src/agent/loop.ts`, this module is dependency-free so it can be loaded
  * both in the extension host and in a plain Node process started by the
  * DeepEval test runner.
  *
@@ -278,7 +279,7 @@ export function loadCapturedRun(filePath: string): { parsed: ParsedEventLog; sum
  *
  * Returns `undefined` when the variable is unset, which is the normal case when
  * a suite is launched directly through `npx deepeval test run` rather than
- * through the `DeepEval: Evaluate Captured Local Agent Run` command.
+ * through the `DeepEval: Evaluate Captured Agent Run` command.
  */
 export function resolveCapturedRunPath(env: NodeJS.ProcessEnv = process.env): string | undefined {
 	const value = env[DEEPEVAL_VSCODE_EVENTS];
