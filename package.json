@@ -1,13 +1,11 @@
 {
   "name": "deval",
   "displayName": "Deval - Agent Evaluator",
-  "description": "Run DeepEval TypeScript test suites from VS Code and evaluate captured agent harness runs.",
+  "description": "Run DeepEval TypeScript test suites to evaluate your agent behavior.",
   "version": "0.0.1",
-  "license": "MIT",
   "publisher": "lanly-dev",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/lanly-dev/deval.git"
+  "sponsor": {
+    "url": "https://github.com/sponsors/lanly-dev"
   },
   "engines": {
     "vscode": "^1.140.0"
@@ -25,6 +23,11 @@
     "llm",
     "vitest"
   ],
+  "icon": "media/deval.png",
+  "galleryBanner": {
+    "color": "white",
+    "theme": "light"
+  },
   "activationEvents": [
     "onChatParticipant:deval.agent"
   ],
@@ -65,7 +68,9 @@
               "description": "Workspace-relative path of the file to read, e.g. \"src/extension.ts\"."
             }
           },
-          "required": ["path"]
+          "required": [
+            "path"
+          ]
         }
       },
       {
@@ -99,7 +104,9 @@
               "description": "Workspace-relative directory to search. Defaults to the workspace root."
             }
           },
-          "required": ["pattern"]
+          "required": [
+            "pattern"
+          ]
         }
       }
     ],
@@ -160,5 +167,10 @@
   "overrides": {
     "diff": "^8.0.4",
     "serialize-javascript": "^7.0.6"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lanly-dev/vscode-deval.git"
+  },
+  "license": "MIT"
 }
