@@ -25,7 +25,7 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 | 1 | `Deval: Evaluate Captured Agent Run` | Score a captured `.jsonl` trajectory in the extension — no suite files or installs needed. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
 | 2 | `Deval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
 
-Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
+Command 2 launches a VS Code task and reports the exit code in a notification when it finishes. It refuses to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing. The install goes into the workspace's `.deval/` folder — never into the workspace root — and the suite runs from there.
 
 ## Scripts
 
@@ -201,7 +201,7 @@ A read-only `node_modules` or a future fixed release is tolerated; the patch is 
 
 ### The `npm-cache\_npx` failure
 
-If the stack points at `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\deepeval\dist\telemetry.js`, the workspace had **no local install** for npx to use, so npx downloaded DeepEval itself. That copy is unpatchable from inside the extension (it lives in npm's cache, outside the workspace) and the suite would fail regardless, because `vitest` is missing too. Both run commands detect this via `requiresLocalDeepEvalInstall()` and offer **Install dependencies** rather than starting a run that cannot succeed. To repair a cached or global copy by hand, point the postinstall script at it:
+If the stack points at `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\deepeval\dist\telemetry.js`, the workspace had **no local install** for npx to use, so npx downloaded DeepEval itself. That copy is unpatchable from inside the extension (it lives in npm's cache, outside the workspace) and the suite would fail regardless, because `vitest` is missing too. Command 2 detects this via `requiresLocalDeepEvalInstall()` and offers **Install dependencies** — into `.deval/`, not the workspace root — rather than starting a run that cannot succeed. To repair a cached or global copy by hand, point the postinstall script at it:
 
 ```sh
 node scripts/patch-deepeval.mjs "%LOCALAPPDATA%\npm-cache\_npx\<hash>"

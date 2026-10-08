@@ -18,6 +18,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Commands are renamed from `DeepEval: …` to `Deval: …` (palette titles, task labels, and docs).
 - `Deval: Evaluate Captured Agent Run` (command 1) no longer dead-ends when no capture exists: it offers **Run Deval agent now**, runs the agent headlessly on a prompt you confirm, and evaluates the capture it creates. It now scores the trajectory **in the extension** via the shared `src/events/score-trajectory.ts` (eight deterministic checks) — no workspace suite files and no DeepEval install needed. `benchmarks/captured-run-benchmark.test.ts` is a thin wrapper over the same scorer for `npm run benchmark`. Removed the suite-discovery code it no longer needs.
+- `Deval: Benchmark Chat Model` (command 2) installs DeepEval + Vitest into the workspace's `.deval/` folder when the workspace has no install of its own — never into the workspace root — and runs the suite from there. A workspace that already has DeepEval keeps using it in place.
 - Commands are numbered 1–2 in the README so they can be referenced by number.
 - Removed `Deval: Run Test Suite` (command 1) — running arbitrary workspace suites is out; the extension's flows are the built-in evaluate and model-benchmark commands. The bundled suites still run via `npm run benchmark`.
 
