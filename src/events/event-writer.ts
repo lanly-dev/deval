@@ -43,7 +43,7 @@ export function sanitizeSessionId(sessionId: string): string {
  *
  * The file is `<workspaceDir>/.deepeval/vscode-agent-events/<sessionId>.jsonl`
  * — the same directory `CAPTURED_RUN_DIRECTORY` points at, so
- * `DeepEval: Evaluate Captured Local Agent Run` offers agent-loop runs without
+ * `DeepEval: Evaluate Captured Agent Run` offers agent-loop runs without
  * any extra wiring. The directory is created on open; each `append` adds one
  * JSON object per line, with mode `0o600` like the hook script.
  */

@@ -9,9 +9,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 
 - `@deval` is now a real tool-calling agent instead of a chat forwarder. It runs an agentic loop (`src/agent/loop.ts`) against the Chat model with three read-only tools — `deval_readFile`, `deval_listFiles`, `deval_grep` — declared in `package.json` and registered via `vscode.lm`.
-- `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `DeepEval: Evaluate Captured Local Agent Run` scores the agent's trajectory with no extra wiring.
+- `src/events/event-writer.ts` — writes agent-loop runs as JSONL captures in the format `event-log.ts` reads, so `DeepEval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring.
 - `benchmarks/agent-loop-benchmark.test.ts` — deterministic suite driving the loop with a scripted model through `observe()`, asserting with `ContainsAllMetric` and `ToolCorrectnessMetric`.
 - Unit tests for the loop core (fake model/tool ports) and the capture writer.
+
+### Removed
+
+- The reference agent (`src/agent-harness.ts`, `benchmarks/todo-benchmark.test.ts`) — the `@deval` agent loop is the system under test now. The `AgentRun` contract moved into `src/agent/loop.ts`.
+- The Local-harness capture pipeline: `src/capture-hook.ts`, `.github/hooks/`, and the `DeepEval: Install Capture Hook` command. Captures are written automatically by the agent loop.
+- The `DeepEval: Scaffold Sample Benchmark` command.
+- The GitHub Actions CI workflow; the README documents the local verification commands instead.
 
 ## [0.1.0]
 

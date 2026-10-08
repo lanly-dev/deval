@@ -1,14 +1,14 @@
-# DeepEval for VS Code
+# deval
 
-A working starter for evaluating coding agents with [DeepEval](https://deepeval.com/docs/getting-started) TypeScript suites, run from VS Code.
+A VS Code extension with its own benchmarkable coding agent. Chat with `@deval` and it runs a real tool-calling loop against your Chat model; every run is captured, and DeepEval TypeScript suites score the runs — trajectory and tool use — with deterministic metrics.
 
-It gives you three things:
+It gives you one thing: **an agent you can measure**.
 
-1. **A reference agent harness** (`src/agent-harness.ts`) and a benchmark suite that evaluates it — the seam you replace with your own agent.
-2. **A capture pipeline** for the VS Code **Local** agent harness (`.github/hooks/`, `.deepeval/vscode-agent-events/*.jsonl`) and a suite that evaluates a captured run.
-3. **Commands that run both** and report pass/fail, plus a scaffolder for a new suite.
+1. **The `@deval` agent** (`src/agent/`) — a tool-calling loop on `vscode.lm` with read-only workspace tools. No API key needed; the model comes from the Chat model picker.
+2. **Automatic capture** — every run is written to `.deepeval/vscode-agent-events/<session-id>.jsonl`.
+3. **Benchmarks** — DeepEval suites that score the loop (scripted model) and score real captured runs (trajectory, tool resolution, policy).
 
-The bundled suites use **deterministic metrics only**, so they run offline with no API key — locally and in CI.
+The bundled suites use **deterministic metrics only**, so they run offline with no API key.
 
 ## Quick start
 
@@ -23,8 +23,7 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 | Command | What it does |
 | --- | --- |
 | `DeepEval: Run Test Suite` | Pick a `*.test.ts` / `*.spec.ts` suite and run it with `deepeval test run`. |
-| `DeepEval: Evaluate Captured Local Agent Run` | Pick a suite **and** a captured `.jsonl`, then run the suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. |
-| `DeepEval: Scaffold Sample Benchmark` | Write `benchmarks/my-agent.test.ts` — a self-contained starter suite — into the workspace, open it, and offer to install `deepeval` + `vitest` with `deval.packageManager`. |
+| `DeepEval: Evaluate Captured Agent Run` | Pick a captured `.jsonl` from `.deepeval/vscode-agent-events/`, then run the captured-run suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. |
 
 Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
 
@@ -36,14 +35,13 @@ Both run commands launch a VS Code task with the workspace folder as its working
 | `npm run lint` | ESLint over `src`, `benchmarks`, and the Vitest config. |
 | `npm run compile` | Type-check, lint, and bundle to `dist/extension.js`. |
 | `npm run benchmark` | `deepeval test run benchmarks` — both bundled suites. |
-| `npm run benchmark:todo` | Only the reference-agent suite. |
 | `npm run benchmark:captured` | Only the captured-run suite (skips itself if `DEEPEVAL_VSCODE_EVENTS` is unset). |
 | `npm test` | Extension-host tests via `@vscode/test-electron`. |
 | `npm run package` | Production bundle for packaging. |
 
-## Replace the agent under test
+## The agent under test
 
-`src/agent-harness.ts` is the only file you need to change to evaluate your own agent. It is deliberately dependency-free — it imports neither `vscode` nor `deepeval` — so the same file loads in the extension host and in the Vitest process that DeepEval spawns.
+The system under test is the `@deval` agent loop itself (`src/agent/loop.ts`). It is deliberately dependency-free — it imports neither `vscode` nor `deepeval` — so the same loop runs in the extension host (via `src/agent/vscode-adapter.ts`), in unit tests with fake ports, and in the Vitest process that DeepEval spawns.
 
 ```ts
 export interface AgentRun {
@@ -53,7 +51,7 @@ export interface AgentRun {
 }
 ```
 
-Return that shape from your implementation and every suite keeps working. `todoAppAgent` is a deterministic reference implementation that emits a single-file todo app.
+`runAgentLoop()` takes the model, the tools, and the capture sink as ports and returns that shape, so every suite keeps working whatever drives the loop. To extend the agent, add a schema in `src/agent/tool-schemas.ts` and an implementation in `src/agent/tools.ts`, then declare it in the `languageModelTools` contribution in `package.json`.
 
 ## Instrument the agent so metrics can see it
 
@@ -62,11 +60,11 @@ Model-judged and trajectory metrics do not read your return value — they read 
 ```ts
 import { SpanType, observe, updateCurrentSpan, updateCurrentTrace } from 'deepeval/tracing';
 
-const observedAgent = observe({
+const observedAgentLoop = observe({
   type: SpanType.AGENT,
-  name: 'my-agent',
+  name: 'deval-agent-loop',
   fn: async (input: string) => {
-    const run = await runAgent(input);
+    const run = await runAgentLoop(input, ports, { toolSchemas: DEVAL_TOOL_SCHEMAS });
     const turn = { input: run.input, output: run.output, toolsCalled: run.toolsCalled };
     updateCurrentSpan(turn);    // component scope
     updateCurrentTrace(turn);   // turn scope — this is what ToolCorrectnessMetric reads
@@ -78,10 +76,10 @@ const observedAgent = observe({
 Then assert against a golden:
 
 ```ts
-const golden = new Golden({ input: 'Build a todo app.', expectedTools: expectedTodoTools() });
+const golden = new Golden({ input: 'What does the deval_readFile tool do?', expectedTools: [...] });
 
-await expect(golden).toPass([structuralChecks(), new ToolCorrectnessMetric({ threshold: 1 })], {
-  task: (testCase) => observedAgent(testCase.input),
+await expect(golden).toPass([new ContainsAllMetric({ required: [...] }), new ToolCorrectnessMetric({ threshold: 1 })], {
+  task: (testCase) => observedAgentLoop(testCase.input),
 });
 ```
 
@@ -94,7 +92,7 @@ await expect(golden).toPass([structuralChecks(), new ToolCorrectnessMetric({ thr
 - **`ContainsAllMetric`** — required/forbidden substrings; the score is the fraction satisfied. Used for structural checks on generated artifacts.
 - **`ToolCallResolutionMetric`** — the share of captured tool calls that returned a result, with a documented tolerance.
 
-Extend `BaseMetric`, set `requiredParams`, compute a `score` in `measure`, and let `isSuccessful()` compare it to the threshold. Deterministic metrics need no key, which is what keeps CI green.
+Extend `BaseMetric`, set `requiredParams`, compute a `score` in `measure`, and let `isSuccessful()` compare it to the threshold. Deterministic metrics need no key, which is what keeps the suites offline-friendly.
 
 For subjective checks, DeepEval's built-in judge metrics (`TaskCompletionMetric`, `GEval`, `ToolCorrectnessMetric` with `availableTools`, …) work as-is — they need `DEEPEVAL_API_KEY`:
 
@@ -102,27 +100,19 @@ For subjective checks, DeepEval's built-in judge metrics (`TaskCompletionMetric`
 export DEEPEVAL_API_KEY=...
 ```
 
-## Capture the VS Code Local harness
+## Captures
 
-This extension ships a Preview Local hook at `.github/hooks/deval.json`. With **Local** selected as the session target, a trusted workspace, and `chat.useHooks` enabled, it records prompt, tool-use, tool-result, and stop events to `.deepeval/vscode-agent-events/<session-id>.jsonl`:
+Every `@deval` run is captured automatically — no hooks to install, nothing to enable. The agent loop records prompt, tool-use, tool-result, and stop events to `.deepeval/vscode-agent-events/<session-id>.jsonl`:
 
 ```json
-{"timestamp":"...","cwd":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"read_file","tool_use_id":"call_...","tool_input":{...}}
+{"timestamp":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"deval_readFile","tool_use_id":"call_...","tool_input":{...}}
 ```
 
-`DeepEval: Evaluate Captured Local Agent Run` sets `DEEPEVAL_VSCODE_EVENTS` to the selected file's absolute path. A suite reads it with `resolveCapturedRunPath()` / `loadCapturedRun()` from `src/events/event-log.ts`, which parses the JSONL, pairs `PreToolUse` with `PostToolUse`, and summarizes the trajectory.
+`DeepEval: Evaluate Captured Agent Run` sets `DEEPEVAL_VSCODE_EVENTS` to the selected file's absolute path. A suite reads it with `resolveCapturedRunPath()` / `loadCapturedRun()` from `src/events/event-log.ts`, which parses the JSONL, pairs `PreToolUse` with `PostToolUse`, and summarizes the trajectory.
 
-The hook files are **not** inside the packaged extension: `.vscodeignore` excludes `.github/**`, so only this repository has them, and a workspace that only ever received a scaffolded benchmark has no hook to enable. Run `DeepEval: Install Capture Hook` to write `.github/hooks/deval.json` and `.github/hooks/deval-hook.cjs` into any workspace. The same button is offered by **Evaluate Captured Local Agent Run** when it finds no captures — alongside the exact directory it searched — and by **Scaffold Sample Benchmark** next to **Install dependencies**. Afterwards, enable `chat.useHooks`, confirm discovery with `Chat: Configure Hooks`, and send one turn in a **Local** session.
+The captured-run suite evaluates the **trajectory** — prompts, tool names, pairing, completion, destructive-tool policy. A tool call that errored appears as a `PostToolUse` whose response carries the error, so interrupted runs stay evaluable.
 
-The captured-run suite evaluates the **trajectory** — prompts, tool names, pairing, completion, destructive-tool policy — because the documented `Stop` payload does not include the response text. A suite that needs the prose must read `transcript_path`, whose format VS Code documents as unstable across releases.
-
-Two behaviours worth knowing:
-
-- A tool call the user **denies** appears as a `PreToolUse` with no matching `PostToolUse`. That is normal, which is why `ToolCallResolutionMetric` allows a small unresolved share instead of failing on any dangling call.
-- The Local harness documents eight events — `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`. This reader interprets the middle four (`HOOK_EVENT_NAMES`); the rest are written to the capture and ignored, so a run with subagents or compaction still evaluates. Run `Chat: Configure Hooks` to confirm which hook files the harness discovered, and check the **GitHub Copilot Chat Hooks** output channel for hook errors.
-- Hooks are Preview and apply only to the VS Code Local harness; Copilot, Claude, and Codex Agent Host sessions have provider-specific hook behaviour.
-
-**Privacy:** captures contain prompts, tool arguments, tool results, and a `transcript_path` into your VS Code history, so `.deepeval/` is Git-ignored. Do not commit it.
+**Privacy:** captures contain prompts, tool arguments, and tool results, so `.deepeval/` is Git-ignored. Do not commit it.
 
 ## The `@deval` agent
 
@@ -140,9 +130,9 @@ v1 ships three **read-only** tools, so the agent needs no confirmation UX:
 | `deval_listFiles` | Lists a workspace directory, non-recursive. |
 | `deval_grep` | Searches file contents for a pattern. |
 
-Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl` in the workspace's own capture format — the same format the Local-harness hook writes. That means `DeepEval: Evaluate Captured Local Agent Run` scores the agent's trajectory with no extra wiring, and `benchmarks/agent-loop-benchmark.test.ts` measures the loop itself with a scripted model.
+Every run is captured to `.deepeval/vscode-agent-events/<session-id>.jsonl`. That means `DeepEval: Evaluate Captured Agent Run` scores the agent's trajectory with no extra wiring, and `benchmarks/agent-loop-benchmark.test.ts` measures the loop itself with a scripted model.
 
-The loop core (`src/agent/loop.ts`) is dependency-free, like `agent-harness.ts`: it takes the model, the tools, and the capture sink as ports, so the same code runs in the extension host (via `src/agent/vscode-adapter.ts`), in unit tests with fakes, and in benchmark suites.
+The loop core (`src/agent/loop.ts`) is dependency-free: it takes the model, the tools, and the capture sink as ports, so the same code runs in the extension host (via `src/agent/vscode-adapter.ts`), in unit tests with fakes, and in benchmark suites.
 
 It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent mode. The model comes from the user's Chat model picker via the Language Model API — no API key needed.
 
@@ -150,20 +140,17 @@ It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent 
 
 ```
 src/
-  agent-harness.ts               # the agent under test (replace this)
   agent/loop.ts                  # dependency-free agentic loop: model turns, tool dispatch, capture
   agent/tool-schemas.ts          # the read-only tools the @deval agent can call (dependency-free)
   agent/tools.ts                 # vscode.lm tool registration + implementations
   agent/vscode-adapter.ts        # adapts the loop to vscode.lm (messages, tool calls, streaming)
-  capture-hook.ts                # the embedded capture hook, written into any workspace
   deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
   events/event-log.ts            # JSONL capture parser + trajectory summarizer
   events/event-writer.ts         # writes captures in the format event-log.ts reads
-  extension.ts                   # commands, chat participant, task runner, scaffolder
+  extension.ts                   # commands, chat participant, task runner
   test/                          # extension-host tests (Mocha, via `npm test`)
 benchmarks/
-  todo-benchmark.test.ts         # evaluates the reference agent through a trace
-  captured-run-benchmark.test.ts # evaluates a captured Local-harness run
+  captured-run-benchmark.test.ts # evaluates a captured @deval run
   agent-loop-benchmark.test.ts   # evaluates the @deval agent loop with a scripted model
   metrics/                       # custom deterministic metrics
 scripts/patch-deepeval.mjs       # see "Known upstream issue" below
@@ -178,7 +165,7 @@ scripts/patch-deepeval.mjs       # see "Known upstream issue" below
 Two things repair it, so this is handled for you:
 
 - In **this repository**, `scripts/patch-deepeval.mjs` runs on `postinstall` and renames the shadowing files. `@sentry/node` is also listed as a devDependency so an install with `--ignore-scripts` still loads.
-- In **any other workspace** — including one you just scaffolded — the extension renames the same files in-process (see `src/deepeval-patch.ts`) before every run, and again after **Install dependencies**. A packaged extension ships without `scripts/`, which is why this is done in-process rather than by spawning a script.
+- In **any other workspace**, the extension renames the same files in-process (see `src/deepeval-patch.ts`) before every run, and again after **Install dependencies**. A packaged extension ships without `scripts/`, which is why this is done in-process rather than by spawning a script.
 
 A read-only `node_modules` or a future fixed release is tolerated; the patch is never the reason a run fails. Remove all of this once upstream publishes a fix.
 
@@ -204,7 +191,7 @@ npm test              # extension-host tests (needs a display; use xvfb-run head
 ## Settings
 
 - `deval.deepevalCommand`: executable used to launch the DeepEval runner. Defaults to `npx`.
-- `deval.packageManager`: package manager the scaffolder installs with — `npm`, `pnpm`, `yarn`, or `bun`. Defaults to `npm`, and is used only by **Install dependencies** on the scaffold notification.
+- `deval.packageManager`: package manager used to install `deepeval` + `vitest` — `npm`, `pnpm`, `yarn`, or `bun`. Defaults to `npm`, and is used only by **Install dependencies** when a run needs it.
 
 These are deliberately separate settings. `deval.deepevalCommand` names the *runner* (`npx deepeval test run …`), so it cannot be reused to install: `npx install --save-dev deepeval vitest` makes npx look for an executable called `install` and fail with `could not determine executable to run`.
 

@@ -10,11 +10,9 @@ import {
 	CAPTURED_RUN_DIRECTORY,
 	DEEPEVAL_TEST_EXCLUDES,
 	PACKAGE_MANAGERS,
-	SCAFFOLD_FILE_NAME,
 	findDeepEvalTestFiles,
 	getDeepEvalTestPatterns,
 	getInstallInvocation,
-	getScaffoldSuiteSource,
 	mergeUniqueUris,
 	requiresLocalDeepEvalInstall,
 } from '../extension';
@@ -123,22 +121,6 @@ suite('Extension Test Suite', () => {
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
 		}
-	});
-
-	test('the scaffolded suite names the file the command reports', () => {
-		assert.strictEqual(SCAFFOLD_FILE_NAME, 'my-agent.test.ts');
-	});
-
-	test('the scaffolded suite is a runnable DeepEval suite', () => {
-		const source = getScaffoldSuiteSource();
-		assert.ok(source.includes("from 'vitest'"));
-		assert.ok(source.includes("deepeval/vitest"));
-		assert.ok(source.includes('observe({'));
-		assert.ok(source.includes('updateCurrentSpan('));
-		assert.ok(source.includes('.toPass('));
-		assert.ok(source.includes('extends BaseMetric'));
-		// The scaffold must run without any credentials, so it must not read env.
-		assert.ok(!source.includes('process.env'));
 	});
 
 	test('discovery returns only real files', async () => {

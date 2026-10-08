@@ -37,15 +37,7 @@
       },
       {
         "command": "deval.evaluateAgentRun",
-        "title": "DeepEval: Evaluate Captured Local Agent Run"
-      },
-      {
-        "command": "deval.scaffoldBenchmark",
-        "title": "DeepEval: Scaffold Sample Benchmark"
-      },
-      {
-        "command": "deval.installCaptureHook",
-        "title": "DeepEval: Install Capture Hook"
+        "title": "DeepEval: Evaluate Captured Agent Run"
       }
     ],
     "chatParticipants": [
@@ -143,7 +135,6 @@
     "check-types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.benchmarks.json",
     "lint": "eslint src benchmarks vitest.config.mts",
     "benchmark": "deepeval test run benchmarks",
-    "benchmark:todo": "deepeval test run benchmarks/todo-benchmark.test.ts",
     "benchmark:captured": "deepeval test run benchmarks/captured-run-benchmark.test.ts",
     "test": "vscode-test"
   },

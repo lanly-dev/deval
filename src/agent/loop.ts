@@ -14,8 +14,24 @@
  */
 
 import type { AgentEvent } from '../events/event-log';
-import type { AgentRun, AgentToolCall } from '../agent-harness';
 import type { DevalToolSchema } from './tool-schemas';
+
+/** A tool invocation an agent made while producing its artifact. */
+export interface AgentToolCall {
+	name: string;
+	inputParameters?: Record<string, unknown>;
+	output?: unknown;
+}
+
+/** One completed agent run, in the shape the benchmark suites consume. */
+export interface AgentRun {
+	/** The prompt the agent was asked to satisfy. */
+	input: string;
+	/** The artifact the agent produced, as text. */
+	output: string;
+	/** The tools the agent used to get there, in call order. */
+	toolsCalled: AgentToolCall[];
+}
 
 /** One message in the agent's conversation. */
 export type LoopMessage =
