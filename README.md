@@ -24,6 +24,7 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 | --- | --- |
 | `DeepEval: Run Test Suite` | Pick a `*.test.ts` / `*.spec.ts` suite and run it with `deepeval test run`. |
 | `DeepEval: Evaluate Captured Agent Run` | Pick a captured `.jsonl` from `.deepeval/vscode-agent-events/`, then run the captured-run suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. |
+| `DeepEval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
 
 Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
 
@@ -136,6 +137,18 @@ The loop core (`src/agent/loop.ts`) is dependency-free: it takes the model, the 
 
 It is an extension-owned agent, not a hook into GitHub Copilot's built-in agent mode. The model comes from the user's Chat model picker via the Language Model API — no API key needed.
 
+## Benchmark the wired chat model
+
+`DeepEval: Benchmark Chat Model` scores the model behind your VS Code Chat — whatever you have wired up — with a suite that **ships inside the extension**, so it works in any workspace, even one with no test files of its own.
+
+1. It asks `vscode.lm` which chat models are available (letting you pick when there are several) and sends each prompt from `resources/builtin-suites/spec.json` to the model.
+2. The responses are recorded to `.deepeval/model-benchmark/<timestamp>.json`.
+3. The built-in suite (`resources/builtin-suites/model-benchmark.test.ts`) is staged into `.deepeval/builtin-suites/` — it resolves `vitest` from the workspace there — and run with `DEEPEVAL_MODEL_RESPONSES` pointing at the responses file.
+
+Each of the six cases passes when the response contains the required keywords (case-insensitive) and none of the forbidden ones: factual recall, following an exact-output instruction, arithmetic, a small code task, a formatting constraint, and a one-sentence summary. Deterministic, no API key.
+
+This benchmarks the **model only** — prompt in, response out. It does not exercise VS Code's built-in agent harness: extensions can't drive or observe that loop through a stable API, which is why the fully observable `@deval` agent above exists for trajectory benchmarking.
+
 ## Repository layout
 
 ```
@@ -148,9 +161,12 @@ src/
   events/event-log.ts            # JSONL capture parser + trajectory summarizer
   events/event-writer.ts         # writes captures in the format event-log.ts reads
   agent/participant.ts             # the @deval chat participant: wires the loop to vscode.lm
+  model-benchmark.ts             # the built-in chat-model benchmark command
   suites.ts                      # the run commands, suite discovery, capture picker, install flow
   extension.ts                   # thin entry point: registers commands and the participant
   test/                          # extension-host tests (Mocha, via `npm test`)
+resources/
+  builtin-suites/                # the built-in model benchmark: spec.json + the suite (shipped)
 benchmarks/
   captured-run-benchmark.test.ts # evaluates a captured @deval run
   agent-loop-benchmark.test.ts   # evaluates the @deval agent loop with a scripted model

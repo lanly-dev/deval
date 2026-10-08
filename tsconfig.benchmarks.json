@@ -11,8 +11,10 @@
     },
     "include": [
         "benchmarks/**/*.ts",
+        "resources/**/*.ts",
         "vitest.config.mts",
-        "src/agent-harness.ts",
+        "src/agent/loop.ts",
+        "src/agent/tool-schemas.ts",
         "src/events/event-log.ts"
     ],
     "exclude": [
