@@ -1,54 +1,15 @@
-// Everything about running DeepEval TypeScript suites from VS Code: the two
-// run commands, suite discovery, the captured-run picker, and the
-// dependency-install flow that keeps them working.
+// The `Deval: Evaluate Captured Agent Run` command: pick (or create) a
+// captured `@deval` run, score its trajectory, and report the result —
+// plus the shared DeepEval dependency-install flow the model benchmark uses.
 import * as vscode from 'vscode';
 
 import { hasDeepEvalInstall, patchDeepEvalInstall } from './deepeval-patch';
-import { DEEPEVAL_VSCODE_EVENTS } from './events/event-log';
+import { loadCapturedRun } from './events/event-log';
+import { scoreCapturedTrajectory, type TrajectoryCheck } from './events/score-trajectory';
 import { runDevalAgentHeadless } from './agent/participant';
 
 /** Folder the agent loop writes captures into, relative to the workspace root. */
 export const CAPTURED_RUN_DIRECTORY = ['.deepeval', 'vscode-agent-events'];
-
-/** Globs searched for DeepEval TypeScript suites. */
-export const DEEPEVAL_TEST_PATTERNS = [
-	'**/*.test.ts',
-	'**/*.spec.ts',
-	'**/benchmarks/**/*.test.ts',
-	'**/src/**/*.test.ts',
-	'**/test/**/*.test.ts',
-];
-
-/** Paths that never contain a DeepEval suite worth running from here. */
-export const DEEPEVAL_TEST_EXCLUDES = '**/{node_modules,dist,out,.vscode-test,.deepeval}/**';
-
-export function getDeepEvalTestPatterns(): string[] {
-	return [...DEEPEVAL_TEST_PATTERNS];
-}
-
-export function mergeUniqueUris(...groups: vscode.Uri[][]): vscode.Uri[] {
-	const seen = new Map<string, vscode.Uri>();
-	for (const group of groups) {
-		for (const uri of group) {
-			seen.set(uri.toString(), uri);
-		}
-	}
-	return [...seen.values()];
-}
-
-export async function findDeepEvalTestFiles(): Promise<vscode.Uri[]> {
-	const discoveryGroups = await Promise.all(
-		getDeepEvalTestPatterns().map(async (pattern) => {
-			try {
-				return await vscode.workspace.findFiles(pattern, DEEPEVAL_TEST_EXCLUDES);
-			} catch {
-				return [];
-			}
-		}),
-	);
-
-	return mergeUniqueUris(...discoveryGroups);
-}
 
 /**
  * Ask the user which captured `@deval` run to evaluate.
@@ -234,62 +195,65 @@ export async function ensureDeepEvalReady(
 	return command;
 }
 
+/**
+ * Evaluate a captured `@deval` run: pick a capture (or create one when none
+ * exists), score its trajectory deterministically, and report the checks.
+ *
+ * No suite files and no DeepEval install needed — the scoring lives in the
+ * extension and is shared with `benchmarks/captured-run-benchmark.test.ts`.
+ */
 export async function evaluateAgentRun(): Promise<void> {
-	if (!vscode.workspace.workspaceFolders?.length) {
-		vscode.window.showWarningMessage('Open a workspace folder to run DeepEval tests.');
+	const folders = vscode.workspace.workspaceFolders;
+	if (!folders?.length) {
+		void vscode.window.showWarningMessage('Open a workspace folder to evaluate a captured agent run.');
+		return;
+	}
+	const workspaceFolder = folders[0];
+
+	const captureUri = await selectDeepEvalRun(workspaceFolder);
+	if (!captureUri) {
 		return;
 	}
 
-	const uniqueTestFiles = await findDeepEvalTestFiles();
-	if (!uniqueTestFiles.length) {
-		vscode.window.showWarningMessage('No TypeScript test files found. Expected *.test.ts or *.spec.ts.');
+	let checks: TrajectoryCheck[];
+	try {
+		const loaded = loadCapturedRun(captureUri.fsPath);
+		checks = scoreCapturedTrajectory({
+			summary: loaded.summary,
+			skippedLines: loaded.parsed.skippedLines,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		void vscode.window.showErrorMessage(`Could not read the capture: ${message}`);
 		return;
 	}
 
-	const selectedFile = await vscode.window.showQuickPick(
-		uniqueTestFiles.map((uri) => ({
-			label: vscode.workspace.asRelativePath(uri),
-			uri,
-		})),
-		{ placeHolder: 'Select a DeepEval TypeScript test suite' },
+	await reportTrajectoryScore(captureUri, checks);
+}
+
+/** Show the trajectory score: a pass/fail notification, with per-check details on demand. */
+async function reportTrajectoryScore(captureUri: vscode.Uri, checks: TrajectoryCheck[]): Promise<void> {
+	const passed = checks.filter((check) => check.passed).length;
+	const name = captureUri.path.split('/').pop() ?? captureUri.fsPath;
+	if (passed === checks.length) {
+		void vscode.window.showInformationMessage(`Deval: ${name} passed all ${checks.length} checks.`);
+		return;
+	}
+
+	const show = 'Show details';
+	const choice = await vscode.window.showWarningMessage(
+		`Deval: ${name} passed ${passed}/${checks.length} checks.`,
+		show,
 	);
-	if (!selectedFile) {
-		return;
+	if (choice === show) {
+		await vscode.window.showQuickPick(
+			checks.map((check) => ({
+				label: `${check.passed ? '$(check)' : '$(error)'} ${check.label}`,
+				detail: check.detail,
+			})),
+			{ placeHolder: `${name}: trajectory checks` },
+		);
 	}
-
-	const workspaceFolder = vscode.workspace.getWorkspaceFolder(selectedFile.uri);
-	if (!workspaceFolder) {
-		vscode.window.showErrorMessage('Could not determine the workspace folder for this test suite.');
-		return;
-	}
-
-	const command = await ensureDeepEvalReady(
-		workspaceFolder,
-		vscode.workspace.asRelativePath(selectedFile.uri),
-	);
-	if (!command) {
-		return;
-	}
-
-	const eventsFile = await selectDeepEvalRun(workspaceFolder);
-	if (!eventsFile) {
-		return;
-	}
-
-	const relativeTestPath = vscode.workspace.asRelativePath(selectedFile.uri, false);
-	const label = `Deval: ${selectedFile.label}`;
-	const task = new vscode.Task(
-		{ type: 'deepeval', testFile: relativeTestPath },
-		workspaceFolder,
-		label,
-		'Deval',
-		new vscode.ProcessExecution(command, ['deepeval', 'test', 'run', relativeTestPath], {
-			cwd: workspaceFolder.uri.fsPath,
-			env: eventsFile ? { DEEPEVAL_VSCODE_EVENTS: eventsFile.fsPath } : undefined,
-		}),
-	);
-	task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, panel: vscode.TaskPanelKind.Dedicated };
-	await executeTaskWithReporting(task, label);
 }
 
 /** Package managers the dependency installer knows how to install with. */

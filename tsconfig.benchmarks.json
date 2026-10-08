@@ -15,7 +15,8 @@
         "vitest.config.mts",
         "src/agent/loop.ts",
         "src/agent/tool-schemas.ts",
-        "src/events/event-log.ts"
+        "src/events/event-log.ts",
+        "src/events/score-trajectory.ts"
     ],
     "exclude": [
         "node_modules",

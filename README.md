@@ -22,7 +22,7 @@ Press `F5` to launch the Extension Development Host, then use the Command Palett
 
 | # | Command | What it does |
 | --- | --- | --- |
-| 1 | `Deval: Evaluate Captured Agent Run` | Pick a captured `.jsonl` from `.deepeval/vscode-agent-events/` and run the captured-run suite with `DEEPEVAL_VSCODE_EVENTS` pointing at that capture. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
+| 1 | `Deval: Evaluate Captured Agent Run` | Score a captured `.jsonl` trajectory in the extension — no suite files or installs needed. If no capture exists yet, offers to run the Deval agent now and evaluates the run it creates. |
 | 2 | `Deval: Benchmark Chat Model` | Benchmark the chat model wired to VS Code with the **built-in** suite — no workspace test files needed. |
 
 Both run commands launch a VS Code task with the workspace folder as its working directory, and report the exit code in a notification when it finishes. They also refuse to launch `npx` in a workspace that has no `deepeval` of its own: npx would download an unpatched copy into its own cache, and the suite would still be missing its `vitest`, so the run offers **Install dependencies** instead of failing.
@@ -108,7 +108,16 @@ Every `@deval` run is captured automatically — no hooks to install, nothing to
 {"timestamp":"...","session_id":"...","hook_event_name":"PreToolUse","tool_name":"deval_readFile","tool_use_id":"call_...","tool_input":{...}}
 ```
 
-`Deval: Evaluate Captured Agent Run` sets `DEEPEVAL_VSCODE_EVENTS` to the selected file's absolute path. A suite reads it with `resolveCapturedRunPath()` / `loadCapturedRun()` from `src/events/event-log.ts`, which parses the JSONL, pairs `PreToolUse` with `PostToolUse`, and summarizes the trajectory.
+Command 1 (`Deval: Evaluate Captured Agent Run`) scores the trajectory **inside the extension** — no suite files, no installs. It runs eight deterministic checks and reports them in a notification, with per-check details on demand:
+
+- the capture holds only valid JSON objects, recorded events, and a session id
+- the run finished (a `Stop` event)
+- tool calls resolved (at most 5% may stay unresolved)
+- no destructive tools were used
+- tool names are well-formed
+- prompts were recorded
+
+The same checks live in `src/events/score-trajectory.ts`, shared with `benchmarks/captured-run-benchmark.test.ts`, so the command and `npm run benchmark` can never disagree about what a good trajectory looks like.
 
 The captured-run suite evaluates the **trajectory** — prompts, tool names, pairing, completion, destructive-tool policy. A tool call that errored appears as a `PostToolUse` whose response carries the error, so interrupted runs stay evaluable.
 
@@ -158,12 +167,14 @@ src/
   agent/tool-schemas.ts          # the read-only tools the @deval agent can call (dependency-free)
   agent/tools.ts                 # vscode.lm tool registration + implementations
   agent/vscode-adapter.ts        # adapts the loop to vscode.lm (messages, tool calls, streaming)
+  agent/participant.ts           # the @deval chat participant + the headless agent run
+  chat-models.ts                 # shared chat-model picker (vscode.lm)
   deepeval-patch.ts              # repairs the deepeval@0.9.22 CLI in any workspace
   events/event-log.ts            # JSONL capture parser + trajectory summarizer
   events/event-writer.ts         # writes captures in the format event-log.ts reads
-  agent/participant.ts             # the @deval chat participant: wires the loop to vscode.lm
+  events/score-trajectory.ts     # deterministic trajectory checks, shared by command 1 and the captured-run suite
   model-benchmark.ts             # the built-in chat-model benchmark command
-  suites.ts                      # the run commands, suite discovery, capture picker, install flow
+  suites.ts                      # the evaluate command, capture picker, install flow
   extension.ts                   # thin entry point: registers commands and the participant
   test/                          # extension-host tests (Mocha, via `npm test`)
 resources/
