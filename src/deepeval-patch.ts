@@ -14,7 +14,8 @@
  *      `@sentry/node`, which `deepeval` does not declare as a dependency, so
  *      the failure is usually "Cannot find module '@sentry/node'" first.
  *
- * Renaming the shadowing files (rather than deleting them) keeps the install inspectable.
+ * Renaming the shadowing files (rather than deleting them) keeps the install
+ * inspectable.
  *
  * This runs in-process instead of spawning `scripts/patch-deepeval.mjs`,
  * because a packaged extension ships without `scripts/` and cannot rely on the
@@ -84,11 +85,9 @@ export function patchDeepEvalInstall(projectRoot: string): DeepEvalPatchResult {
 		try {
 			renameSync(shadowing, `${shadowing}${SHADOWED_FILE_SUFFIX}`);
 			result.patched.push(name);
-		} catch (error) {
+		} catch {
+			// The file stays active; the caller reports `blocked` names to the user.
 			result.blocked.push(name);
-			console.warn(
-				`[deval] Could not disable dist/${name}: ${error instanceof Error ? error.message : error}`,
-			);
 		}
 	}
 

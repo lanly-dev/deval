@@ -154,11 +154,8 @@ export async function executeTaskWithReporting(task: vscode.Task, label: string)
  * an install heals workspaces whose deepeval was installed by hand.
  */
 function applyDeepEvalPatch(projectRoot: string): void {
-	const { patched, blocked } = patchDeepEvalInstall(projectRoot);
+	const { blocked } = patchDeepEvalInstall(projectRoot);
 
-	if (patched.length) {
-		console.log(`[deval] Disabled stale deepeval dist file(s): ${patched.join(', ')}.`);
-	}
 	if (blocked.length) {
 		void vscode.window.showWarningMessage(
 			`The installed deepeval package is broken (${blocked.join(', ')}) and could not be repaired. See "Known upstream issue" in the deval README.`,
@@ -317,7 +314,7 @@ const INSTALL_ARGUMENTS: Record<PackageManager, string[]> = {
  * makes npx look for an executable called `install`, which fails with
  * "could not determine executable to run".
  *
- * An unset or unrecognized value falls back to npm rather than erroring, since
+ * An unset or unrecognised value falls back to npm rather than erroring, since
  * a typo in a setting should not block the installer.
  */
 export function getInstallInvocation(packageManager: string | undefined): {
