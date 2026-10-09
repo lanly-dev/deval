@@ -16,10 +16,18 @@ It gives you one thing: **an agent you can measure**.
 
 The bundled suites use **deterministic metrics only**, so they run offline with no API key.
 
-## Settings
+## Commands
+- `Deval: Evaluate Captured Agent Run` — Evaluate Captured Agent Run tests your `@deval` agent's behavior so it is focus on agent with 8 checks.
+- `Deval: Benchmark Chat Model` — Benchmark wired model, focus on llm with 11 cases.
+- `Deval: Show Scoreboard` — Show the record runs.
 
+## Settings
 - `deval.devalCommand`: executable used to launch the DeepEval runner. Defaults to `npx`.
 - `deval.packageManager`: package manager used to install `deepeval` + `vitest` — `npm`, `pnpm`, `yarn`, or `bun`. Defaults to `npm`, and is used only by **Install dependencies** when a run needs it.
 
 These are deliberately separate settings. `deval.devalCommand` names the *runner* (`npx deepeval test run …`), so it cannot be reused to install: `npx install --save-dev deepeval vitest` makes npx look for an executable called `install` and fail with `could not determine executable to run`.
 
+## Release Notes
+
+### 0.0.1
+- Initial release of Deval

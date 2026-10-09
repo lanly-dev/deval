@@ -12,8 +12,16 @@
     "js/ts.tsc.autoDetect": "off",
     // Use the workspace TypeScript (6.x) so the editor matches `npm run check-types`;
     // VS Code's bundled TS 5.x cannot resolve some Node globals the project relies on.
-    "typescript.tsdk": "node_modules/typescript/lib",
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
     "cSpell.words": [
-        "deval"
+        "benchmarkable",
+        "deepeval",
+        "deval",
+        "headlessly",
+        "inspectable",
+        "lanly",
+        "LOCALAPPDATA",
+        "sandboxed",
+        "unpatchable"
     ]
 }
