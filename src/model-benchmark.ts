@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import { readFile, unlink } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { clearTimeout, setTimeout } from 'node:timers';
 
 import { ensureDeepEvalReady, devalDirectoryUri, executeTaskWithReporting } from './suites';
 import { appendScore, type ScoreCheck } from './scores';
