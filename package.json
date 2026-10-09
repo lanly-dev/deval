@@ -21,6 +21,7 @@
     "deepeval",
     "evaluation",
     "llm",
+    "test",
     "vitest"
   ],
   "icon": "media/deval.png",
