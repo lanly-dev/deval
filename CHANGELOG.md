@@ -3,12 +3,14 @@ All notable changes to the `deval` extension are documented here.\
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 ## [PLAN]
 - Integrate future mainstream benchmarking suite
+- Add pass@k
+- More checks and cases
 
 ## [0.0.1] - 2026-10-09
 - Initial release
 - Three commands:
-  - `evaluateAgentRun`: focus on agent harness
-  - `benchmarkChatModel`: focus on llm
+  - `evaluateAgentRun`: focus on agent harness - 8 checks
+  - `benchmarkChatModel`: focus on llm - 11 cases
   - `showScoreboard`: history runs for comparing
 - 10 files, 137.93 KB, 1.140.0
 ```
