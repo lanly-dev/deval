@@ -17,11 +17,13 @@
         "benchmarkable",
         "deepeval",
         "deval",
+        "esbuild",
         "headlessly",
         "inspectable",
         "lanly",
         "LOCALAPPDATA",
         "sandboxed",
-        "unpatchable"
+        "unpatchable",
+        "vitest"
     ]
 }

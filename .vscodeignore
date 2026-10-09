@@ -1,22 +1,21 @@
-.vscode/**
-.deval/**
-.deepeval/**
-out/**
-node_modules/**
-package-lock.json
-*.vsix
-src/**
-benchmarks/**
-scripts/**
+**/*.map
+
+.vscode/
+.vscode-test/
+# Benchmarks is bundled
+benchmarks/
+media/deval.svg
+node_modules/
+scripts/
+src/
 .gitignore
+.vscode-test.mjs
+DEV.md
+*.vis
 esbuild.js
+eslint.config.mjs
+package.lock.json
+tsconfig.benchmarks.json
+tsconfig.json
 vitest.config.mts
 vsc-extension-quickstart.md
-**/tsconfig*.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
-# Re-include: the built-in benchmark suite is staged from here at runtime
-# (resolved via context.extensionUri in src/model-benchmark.ts).
-!resources/**
