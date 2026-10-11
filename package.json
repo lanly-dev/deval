@@ -1,8 +1,8 @@
 {
   "name": "deval",
   "displayName": "Deval - Agent Evaluator ✅",
-  "description": "Run DeepEval TypeScript test suites to evaluate your agent behavior",
-  "version": "0.0.1",
+  "description": "Run DeepEval TypeScript test suites to evaluate your agent behavior.",
+  "version": "0.0.2",
   "publisher": "lanly-dev",
   "sponsor": {
     "url": "https://github.com/sponsors/lanly-dev"
@@ -21,7 +21,6 @@
     "deepeval",
     "evaluation",
     "llm",
-    "test",
     "vitest"
   ],
   "icon": "media/deval.png",
